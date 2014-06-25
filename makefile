@@ -1,4 +1,5 @@
-CXX = g++
+#CXX = g++
+CXX = mpic++
 FLAGS = -ggdb -Wall
 
 all: m+.o mp.o aStar.o 
@@ -8,7 +9,7 @@ m+.o: m+.cpp m+.hpp
 	${CXX} ${FLAGS} -c m+.cpp
 
 mp.o: mp.cpp m+.hpp
-	${CXX} ${FLAGS} -c mp.cpp -fopenmp
+	${CXX} ${FLAGS} -c mp.cpp
 
 aStar.o: aStar.cpp m+.hpp
 	${CXX} ${FLAGS} -c aStar.cpp -fopenmp
