@@ -1,5 +1,6 @@
 #CXX = g++
 CXX = mpic++
+#CXX = CC
 FLAGS = -ggdb -Wall
 
 all: m+.o mp.o aStar.o 

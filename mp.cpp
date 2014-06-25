@@ -120,7 +120,7 @@ void printProgBar( int percent)
 
   	std::cout<< "\r" "[" << bar << "] ";
   	std::cout.width( 3 );
-  	std::cout<< percent << "% complete     thread "<<omp_get_thread_num() <<" "<< std::flush;
+  	std::cout<< percent << "% complete "<< std::flush;
 }
 
 // returns count of non-overlapping occurrences of 'sub' in 'str'
@@ -151,18 +151,18 @@ void mp(
 	vector<vector<vector<std::string> > > TargetAlleleByPopList,
 	vector<int> ActiveMaxAllelesList,
 	vector<int> TargetMaxAllelesList,
-	vector<std::string> FullAccessionNameList,
-	int parallelism_enabled
+	vector<std::string> FullAccessionNameList
 	)	
 {
 
 	//PERFORM INITIAL MPI STUFF
 	MPI_Status status; //this struct contains three fields which will contain info about the sender of a received message
 						 // MPI_SOURCE, MPI_TAG, MPI_ERROR
-	MPI::Init ();  //Initialize MPI.
+	
+	//MPI::Init ();  //Initialize MPI.
 	int nproc = MPI::COMM_WORLD.Get_size ( );  //Get the number of processes.
 	int procid = MPI::COMM_WORLD.Get_rank ( );  //Get the individual process ID.
-
+	
 
 	/*MPI OMITTED SECTION
 	//set up variables for monitoring progress
@@ -191,7 +191,11 @@ void mp(
 	//receive values from any slave, in any order, exiting when the number of 'receives' = the top vector size
 	if ( procid == 0 ) 
 	{
-		cout << "Results.size()="<<Results.size()<<"\n";
+		//set up variables for monitoring progress
+		int percent; //percent of analysis completed
+		int progindex = 0;  //index to monitor progress, percent = 100*(progindex/l)
+
+		//receive and process results from slave processors
 		unsigned int i = 0;
 		while (i<2*(Results.size())) //two receives per row
 		{
@@ -201,8 +205,6 @@ void mp(
 			MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			MPI_Get_count(&status, MPI_CHAR, &nchar);
 			tag = status.MPI_TAG;
-				
-			cout << "nchar received="<<nchar<<"\n";
 
 			if (tag == 0)
 			{
@@ -217,9 +219,8 @@ void mp(
 					Results[ t[9] ][j] = t[j];
 				}
 				t.clear();
-			
-				cout << "Received resvec from proc " << status.MPI_SOURCE<<".\n";
 			}
+
 			else if (tag == 1)
 			{
 				//receive the vector<string> of the core set, tagged 1, from:
@@ -228,76 +229,46 @@ void mp(
 				char m[nchar];
 				MPI_Recv(&m[0], nchar, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
 			
-				//print out m
-				cout << "Received m from proc " << status.MPI_SOURCE<<": "<<m<<".\n";
-			
-			
 				//load core set onto Members
 				//1. convert char array into a string
 				string mstr(m);
-				cout <<"Recv converted char m to string mstr: "<< mstr<<".\n";
 			
 				//2. split string on delimiter ',<!>,'
 				string delim = ",<!>,";
 				vector<string> mvec( countSubstring(mstr, delim) );
-				cout <<"Recv calculated mvec size: "<<mvec.size()<<".\n";
-
 				unsigned int st = 0;
 				std::size_t en = mstr.find(delim);
 				int k = 0;
 				while (en != std::string::npos)
 				{
-					cout <<"Recv took mstr.substr(st, en-st): "<<mstr.substr(st, en-st)<<", k="<<k<<".\n";
 					mvec[k] = mstr.substr(st, en-st);
 					st = en + delim.length();
 					en = mstr.find(delim,st);
 					++k;
 				}
-				cout <<"Recv says k now = "<<k<<", st="<<st<<", en="<<en<<", npos="<<std::string::npos<<".\n";
 				string z = mstr.substr(st); //get row number as last item in mstr
 				int zz = atoi(z.c_str()); //convert string to c-string then to int
 			
 				//3. load onto Members
 				Members[zz] = mvec;
 			}
-			else cout << "MPI_TAG not recognized.\n";
 			++i;
-		}
-
-		//Master0 writes results
-		cout<<"Results: ";
-		for (i=0;i<Results.size();++i)
-		{
-			for (unsigned int j=0;j<Results[i].size();++j)
-			{
-				cout << Results[i][j] << ",";
-			}
-			cout << "\n";
-		}
-	
-		//Master 0 writes Members vector<string>
-		cout<<"Members: ";
-		for (i=0;i<Members.size();++i)
-		{
-			for (unsigned int j=0;j<Members[i].size();++j)
-			{
-				cout << Members[i][j] << ",";
-			}
-			cout << "\n";
+			
+			//display progress
+			progindex = progindex + 1;
+			percent = 100*( progindex/(V1*2) ); //number of rows X 2 repeats needed to complete search
+			printProgBar(percent); 
 		}
 	}//***MPI: END MASTER RECEIVE***/
 
-	//#pragma omp parallel if(parallelism_enabled) 
-	//{		
 	
 	/***MPI:  SEND RESULTS FROM SLAVE PROCESSES***/
 	else if ( procid != 0 )
 	{
 		unsigned int r; //r = core size, 
-		int nr, RandAcc, b, row, bsc, plateau; //nr = controller to repeat NumReplicates times
+		int nr, RandAcc, b, bsc, plateau; //nr = controller to repeat NumReplicates times
 								//row = result vector row number, bsc = holds best sub core member, and other indexed accessions
 									//plateau = index of the number of reps in optimization loop with same diversity value
-								
 		double RandomActiveDiversity;
 		double AltRandomActiveDiversity;
 		double StartingRandomActiveDiversity;
@@ -328,9 +299,7 @@ void mp(
 		//seed the random number generator for each processor
 		int tt;
 		tt = (time(NULL));
-		//srand ( tt ^ omp_get_thread_num() ); //initialize
 		srand ( abs(((tt*181)*((procid-83)*359))%104729) );
-		//seed = abs(((s*181)*((pid-83)*359))%104729)
 	
 		//***recovery files not used for MPI***/
 		/*//set up a recovery file for each thread that saves progress as program runs
@@ -368,10 +337,8 @@ void mp(
 			stop = start + count;
 		}
 		
-
+		//iterate thru the relevant rows
 		for (int rnr=start;rnr<stop;++rnr)
-		//#pragma omp for
-		//for (int rnr = 0; rnr<rsteps*NumReplicates;++rnr)
 		{
 			r = MinCoreSize + ((rnr / NumReplicates) * SamplingFreq); //int rounds to floor
 			nr = rnr % NumReplicates; // modulo
@@ -633,22 +600,13 @@ void mp(
 
 			/***MPI: BUILD & SEND RESULTS VECTOR***/
 			//load the variables onto the results vectors
-			//numerical results
-			row = ((r - MinCoreSize)*NumReplicates) + nr - ( (NumReplicates*(SamplingFreq-1))*( (r-MinCoreSize)/SamplingFreq ) );
+			
+			//no need to calculate row number, it is the same as rnr, formula saved because it might be useful later
+			//row = ((r - MinCoreSize)*NumReplicates) + nr - ( (NumReplicates*(SamplingFreq-1))*( (r-MinCoreSize)/SamplingFreq ) );
 			// (r - MinCoreSize)*NumReplicates) + nr specifies row number if SamplingFreq=1
 			// (NumReplicates*(SamplingFreq-1)) specifies a step value to correct when SamplingFreq>1
 			// ( (r-MinCoreSize)/SamplingFreq ) specifies the replicate on core size, accounting for SamplingFreq
 			// see file Calculation of row value.xlsx for development of the 'row' index
-			/*Results[row][0] = r;
-			Results[row][1] = StartingRandomActiveDiversity;//RandomActiveDiversity;
-			Results[row][2] = best; //equivalent to OptimizedActiveDiversity
-			Results[row][3] = RandomTargetDiversity;
-			Results[row][4] = OptimizedTargetDiversity;
-			Results[row][5] = StartingAltRandomActiveDiversity;//AltRandomActiveDiversity;
-			Results[row][6] = AltOptimizedActiveDiversity;
-			Results[row][7] = AltRandomTargetDiversity;
-			Results[row][8] = AltOptimizedTargetDiversity;
-			*/
 			
 			//put results 0-8 into a vector, resvec, return row as last item
 			vector<double> resvec(10);
@@ -662,20 +620,21 @@ void mp(
 			resvec[6] = AltOptimizedActiveDiversity;
 			resvec[7] = AltRandomTargetDiversity;
 			resvec[8] = AltOptimizedTargetDiversity;
-			resvec[9] = double(row);
+			resvec[9] = double(rnr);
 		
-			//send result vector to master 0, send row number as last element.
+			//send result vector to master 0, send row number, rnr, as last element.
 			//message is tagged as 0
 			//here you are pointing to the first element, then returning resvec.size() doubles-
 			//worth of memory from that starting location.
 			MPI_Send(&resvec[0], 10, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 			/***MPI: END BUILD & SEND RESULTS VECTOR***/
 
+
 			/***MPI: BUILD & SEND MEMBERS VECTOR***/
 			//add row number as last item in TempListStr
 			TempListStr.resize(TempListStr.size()+1);
 			stringstream ss;
-			ss << row;	//convert int to stringstream to string			
+			ss << rnr;	//convert int to stringstream to string			
 			TempListStr[ TempListStr.size() - 1 ] = ss.str();
 		
 			//convert vector<string> to a single, ',<!>,' delimited, string
@@ -706,9 +665,8 @@ void mp(
 			percent = 100*(progindex/V1);
 			printProgBar(percent); 
 			*/
-		} //end for loop over rows (end #pragma omp)
+		} //end for loop over rows
 	} //***MPI:  END SEND
-	//} //end #pragma omp parallel	
 	
 
 	/*MPI: MASTER 0 WRITES OUTPUT*/

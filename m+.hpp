@@ -167,6 +167,5 @@ void mp
 		vector<vector<vector<std::string> > > TargetAlleleByPopList,
 		vector<int> ActiveMaxAllelesList,
 		vector<int> TargetMaxAllelesList,
-		vector<std::string> FullAccessionNameList,
-		int parallelism_enabled
+		vector<std::string> FullAccessionNameList
 	);	

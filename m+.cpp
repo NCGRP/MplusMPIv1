@@ -595,6 +595,11 @@ void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<std::stri
 
 int main( int argc, char* argv[] )
 {
+	//***MPI: INITIAL STEPS***
+	MPI::Init ();  //Initialize MPI.
+	int procid = MPI::COMM_WORLD.Get_rank ( );  //Get the individual process ID.
+
+	//***MPI: ALL PROCESSORS PARSE THE COMMAND LINE***
 	//get mandatory command line arguments
 	char* VarFilePath = argv[1];
 	char* DatFilePath = argv[2];
@@ -668,60 +673,70 @@ int main( int argc, char* argv[] )
 	
 	if (BadFiles.size() > 0)
 	{
-		cout << "\nThe following variables appear to contain misspecified paths:\n";
-		for (i=0;i<BadFiles.size();++i)
+		//***MPI: MASTER 0 SHARES THE BAD NEWS***
+		if ( procid == 0)
 		{
-			cout << "  " << BadFiles[i] << "\n";
+			cout << "\nThe following variables appear to contain misspecified paths:\n";
+			for (i=0;i<BadFiles.size();++i)
+			{
+				cout << "  " << BadFiles[i] << "\n";
+			}
+			cout << "\nPlease check the command line.  Quitting...\n\n";
 		}
-		cout << "\nPlease check the command line.  Quitting...\n\n";
+		
+		//***MPI: ALL PROCESSORS QUIT***
 		exit (EXIT_FAILURE);
 	}
 	
+	//***MPI: MASTER 0 PRINTS RUN SPECS***
 	//print out input variables
-	cout << "Input variables:\n  VarFilePath = " << VarFilePath << "\n";
-	cout << "  DatFilePath = " << DatFilePath << "\n";
-	if (DoM == "yes")
+	if ( procid == 0 )
 	{
-		cout << "  -m invoked:\n";
-		cout << "    MinCoreSize = " << MinCoreSize << "\n";
-		cout << "    MaxCoreSize = " << MaxCoreSize << "\n";
-		cout << "    SamplingFreq = " << SamplingFreq << "\n";
-		cout << "    NumReplicates = " << NumReplicates << "\n";
-		cout << "    OutFilePath = " << OutFilePath << "\n";
-	}
-	if (Kernel == "yes") 
-	{
-		cout << "  -k invoked:\n";
-		cout << "    KerFilePath = " << KerFilePath << "\n";
-	}
-	if (Ideal == "yes")
-	{
-		cout << "  -a invoked:\n";
-		cout << "    IdealFilePath = " << IdealFilePath << "\n";
+		cout << "Input variables:\n  VarFilePath = " << VarFilePath << "\n";
+		cout << "  DatFilePath = " << DatFilePath << "\n";
+		if (DoM == "yes")
+		{
+			cout << "  -m invoked:\n";
+			cout << "    MinCoreSize = " << MinCoreSize << "\n";
+			cout << "    MaxCoreSize = " << MaxCoreSize << "\n";
+			cout << "    SamplingFreq = " << SamplingFreq << "\n";
+			cout << "    NumReplicates = " << NumReplicates << "\n";
+			cout << "    OutFilePath = " << OutFilePath << "\n";
+		}
+		if (Kernel == "yes") 
+		{
+			cout << "  -k invoked:\n";
+			cout << "    KerFilePath = " << KerFilePath << "\n";
+		}
+		if (Ideal == "yes")
+		{
+			cout << "  -a invoked:\n";
+			cout << "    IdealFilePath = " << IdealFilePath << "\n";
+		}
 	}
 	
 	//catch some errors in the command line
 	if (MinCoreSize > MaxCoreSize) 
 	{
-		cout << "ERROR:  The minimum core size ("<<MinCoreSize<<") is greater than the maximum core size.  Please correct the command line arguments.  Quitting...\n\n";
-    	exit (EXIT_FAILURE);
+		if ( procid == 0 ) cout << "ERROR:  The minimum core size ("<<MinCoreSize<<") is greater than the maximum core size.  Please correct the command line arguments.  Quitting...\n\n";
+    	exit (EXIT_FAILURE); //master0 reports above, everybody quits here
     }
     if (MinCoreSize == 1)
     {
-    	cout << "ERROR:  A minimum core size of 1 is not allowed.  Please correct the command line.  Quitting...\n\n"; 
-		exit (EXIT_FAILURE);
+		if ( procid == 0 ) cout << "ERROR:  A minimum core size of 1 is not allowed.  Please correct the command line.  Quitting...\n\n"; 
+		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
 	if (Kernel == "yes" && Ideal == "yes" && DoM == "no")
 	{
-		cout << "ERROR:  A* search cannot be performed with a kernel file.  Please correct the command line.  Quitting...\n\n";
-		exit (EXIT_FAILURE);
+		if ( procid == 0 ) cout << "ERROR:  A* search cannot be performed with a kernel file.  Please correct the command line.  Quitting...\n\n";
+		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
     if (KernelAccessionList.size() > MinCoreSize)
     {
-		cout << "ERROR:  The number of mandatory accessions ("<<KernelAccessionList.size()
+		if ( procid == 0 ) cout << "ERROR:  The number of mandatory accessions ("<<KernelAccessionList.size()
 			 <<") is greater than the minimum core size ("<<MinCoreSize
         	 <<").  Please modify the kernel file or the command line argument.  Quitting...\n\n";
-			exit (EXIT_FAILURE);
+			exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
 	
 
@@ -746,6 +761,9 @@ int main( int argc, char* argv[] )
 	MyProcessVarFile(VarFilePath, AllColumnIDList, AllLociNameList, ActiveColumnIDList, ActiveLociNameList, TargetColumnIDList, TargetLociNameList, ColKeyToAllAlleleByPopList, ReferenceOrTargetKey, PloidyList, UniqLociNamesList ); 
 	//all but first variable above are updated as references in MyProcessVarFile
 
+	//***MPI: MASTER 0 PRINTS OUT LOCUS SPECS***
+	if ( procid == 0 ) 
+	{
 		//Print out ActiveColumnIDList and ActiveLociNameList
 		if (ActiveColumnIDList.size() == 0)
 		{
@@ -759,7 +777,7 @@ int main( int argc, char* argv[] )
 				cout << ActiveLociNameList[i] << "\t" << (ActiveColumnIDList[i] + 1) << "\n";
 			}
 		}
-		
+	
 		//Print out TargetColumnIDList and TargetLociNameList
 		if (TargetColumnIDList.size() == 0)
 		{
@@ -774,9 +792,11 @@ int main( int argc, char* argv[] )
 			}
 		}
 
-	//process .dat file
-	cout << "\nProcessing .dat file...\n";
-	
+		//process .dat file
+		cout << "\nProcessing .dat file...\n";
+	}
+
+	//***MPI: ALL PROCESSORS READ .DAT FILE***
 	vector<std::string> FullAccessionNameList;
 	vector<std::string> IndivPerPop;
 	vector<std::string> AllAlleles;
@@ -868,8 +888,8 @@ int main( int argc, char* argv[] )
 	//catch a possible error in the command line
 	if (MaxCoreSize > NumberOfAccessions)
 	{
-		cout << "ERROR:  Maximum core size of "<<MaxCoreSize<< " is greater than the number of accessions.  Please set to a lower value. Quitting...\n\n";
-		exit (EXIT_FAILURE);
+		if ( procid == 0 ) cout << "ERROR:  Maximum core size of "<<MaxCoreSize<< " is greater than the number of accessions.  Please set to a lower value. Quitting...\n\n";
+		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
 
 	//get number of loci
@@ -957,12 +977,16 @@ int main( int argc, char* argv[] )
 	//stop the clock
 	time (&endi);
 	double dif = difftime (endi,starti);
-	cout << "Input files processed.  Elapsed time = "<< dif << " seconds.\n\n";
+
+	//***MPI: MASTER 0 PRINTS DAT FILE SPECS
+	if ( procid == 0 ) 
+	{
+		cout << "Input files processed.  Elapsed time = "<< dif << " seconds.\n\n";
 	
-	cout << "Number of accessions = " << NumberOfAccessions << ", Number of loci = " << NumLoci;
-	if (Kernel == "yes") cout << ", Number of kernel accessions = " << KernelAccessionList.size() << "\n\n";
-	else cout << "\n\n";
-	
+		cout << "Number of accessions = " << NumberOfAccessions << ", Number of loci = " << NumLoci;
+		if (Kernel == "yes") cout << ", Number of kernel accessions = " << KernelAccessionList.size() << "\n\n";
+		else cout << "\n\n";
+	}
 	
 	//PERFORM A*
 	if (Ideal == "yes")
@@ -999,10 +1023,7 @@ int main( int argc, char* argv[] )
 	//PERFORM M+
 	if (DoM == "yes")
 	{
-		//compile as parallel or not?
-		int parallelism_enabled = 0; //0=no, not 0 = yes
-		if (parallelism_enabled == 0) cout << "\nBeginning serial M+ search...\n\n";
-		else cout << "\nBeginning parallel M+ search...\n\n";
+		if ( procid == 0 ) cout << "\nBeginning parallel M+ search...\n\n";
 
 		//start the clock
 		time_t startm,endm;
@@ -1023,14 +1044,13 @@ int main( int argc, char* argv[] )
 		TargetAlleleByPopList,
 		ActiveMaxAllelesList,
 		TargetMaxAllelesList,
-		FullAccessionNameList,
-		parallelism_enabled
+		FullAccessionNameList
 		);
 		
 		//stop the clock
 		time (&endm);
 		dif = difftime (endm,startm);
-		cout << "\nM+ search complete.  Elapsed time = "<< dif << " seconds.\n\n";
+		if ( procid == 0 ) cout << "\nM+ search complete.  Elapsed time = "<< dif << " seconds.\n\n";
 	
 	}
 	
