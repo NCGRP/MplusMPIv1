@@ -9,6 +9,7 @@
 #include <omp.h>
 #include <set>
 #include <string>
+#include <string.h>
 #include <sstream>
 #include <time.h>
 #include <vector>
