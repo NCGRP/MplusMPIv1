@@ -596,7 +596,7 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 	int l;
 	Node tempNode;
 	static const SortedCostNodeList emptyl; //this will be used to zero OPENlist between loops
-	std::string Soln; //holds whether a solution was found or not
+	//std::string Soln; //holds whether a solution was found or not
 
 	while (true)
 	{
@@ -604,7 +604,7 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 		//exit condition 1, OPENlist is empty so there is no solution
 		if (OPENlist.s.size() == 0) 
 		{
-			Soln = "no";
+			//Soln = "no";
 			cout << "Sorry, there is no solution for A* optimization.\n";
 			break;
 		}
@@ -629,7 +629,7 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 		//exit condition 2, current state of node_current = ActiveMaxAllelesList (which is goalstate)
 		if (currentstate == goalstate) 
 		{
-			Soln = "yes"; //node_current contains the final accession necessary, trace back its parents to get minimum core
+			//Soln = "yes"; //node_current contains the final accession necessary, trace back its parents to get minimum core
 			//trace back the ParentPath from node current to get the ideal core set
 			ParentPath = MyReconstructPath(node_current, AllNodes);
 			ParentPath.push_back(node_current.GetAccName());
@@ -715,6 +715,8 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 		s.clear();  //clear the vector<Node>, treated as public for input by multiple threads
 		s.resize(v.size()); //resize to number of possible successor nodes
 		
+		
+
 		#pragma omp parallel if(parallelism_enabled) 
 		{
 			//declare private variables
@@ -725,6 +727,7 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 			int l;
 			int vsize = v.size();  //unsigned int coerced to signed int so compiler doesn't squawk for using unsigned int for #pragma omp for iterator
 
+			
 			#pragma omp for
 			for (int i=0;i<vsize;++i)
 			{
@@ -770,11 +773,13 @@ int aStar (char* IdealFilePath, vector<vector<vector<std::string> > > ActiveAlle
 				//accumulate updated nodes into a single vector, to be pushed onto OPENlist later
 				s[i] = AllNodes[l];
 
-				}
-			}//end pragma omp parallel if
+			}
+		}//end pragma omp parallel if
 
-			//add vector of updated nodes onto OPENlist via .pushs, which sorts them properly
-			OPENlist.pushs(s);
-		}
+
+		//add vector of updated nodes onto OPENlist via .pushs, which sorts them properly
+		OPENlist.pushs(s);
+	}//end while (true)
+	
 	return 0;
 }

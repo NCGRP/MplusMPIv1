@@ -16,7 +16,7 @@ Options:
 		outputfile = path to output
 -k kernelfile = use an MSTRAT .ker file to specify mandatory members of the 
         core.  The number of mandatory accessions must therefore be less than or equal to 
-        mincoresize.  Option must be used with -m.
+        mincoresize.  Option only applies to -m, and cannot be used with -a.
 -a idealcorefile = compute the minimum set of accessions necessary to retain all variation,
 		i.e. the "ideal" or "best" core, using the A* search algorithm, write output to 
 		bestcorefile.
@@ -24,8 +24,10 @@ Options:
 Notes:  All input files must have Unix line breaks.
 
 Examples: mpirun -np 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
-          		aprun -n 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
+				aprun -n 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
           mpirun -np 6 ./m+ ./AllPOC.var ./AllPOC.dat -m 2 56 1 5 AllPOCout.txt -a AllPOCidealout.txt
-          		aprun -n 6 ./m+ ./AllPOC.var ./AllPOC.dat -m 2 56 1 5 AllPOCout.txt -a AllPOCidealout.txt
+				aprun -n 6 ./m+ ./AllPOC.var ./AllPOC.dat -m 2 56 1 5 AllPOCout.txt -a AllPOCidealout.txt
           mpirun -np 16 ./m+ ./orientalis.var ./orientalisIND.dat -m 2 50 1 1 orINDout.txt -a orINDidealout.txt
-         ./m+ ./WheatSNP.var ./WheatSNP.dat -m 20 21 1 20 ./WheatSNPout.txt
+				aprun -n 16 ./m+ ./orientalis.var ./orientalisIND.dat -m 2 50 1 1 orINDout.txt -a orINDidealout.txt
+          mpirun -np 20 ./m+ ./WheatSNP.var ./WheatSNP.dat -m 20 21 1 20 ./WheatSNPout.txt
+				aprun -n 20 ./m+ ./WheatSNP.var ./WheatSNP.dat -m 20 21 1 20 ./WheatSNPout.txt

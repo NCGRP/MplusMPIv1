@@ -3,6 +3,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <malloc/malloc.h>
 #include <math.h>
 #include <mpi.h>
 #include <numeric>
@@ -14,6 +15,7 @@
 #include <time.h>
 #include <vector>
 using namespace std;
+
 
 /***************STRUCTS*****************/
 struct Alfreq //contains allele frequencies for all alleles at one locus

@@ -263,7 +263,7 @@ int MyReduceToRef(vector<vector<vector<std::string> > > AllAlleleByPopList, vect
 		for (j=0;j<AllAlleleByPopList[i].size();++j) //iterate thru loci
 		{
 			b.clear();
-			b.resize( AllAlleleByPopList[i][j].size() );
+			//b.resize( AllAlleleByPopList[i][j].size() ); //necessary for OpenMP, but not MPI
 			b = AllAlleleByPopList[i][j];
 			
 			if (ReferenceOrTargetKey[j] == 0) //it is a reference locus
@@ -281,7 +281,7 @@ int MyReduceToRef(vector<vector<vector<std::string> > > AllAlleleByPopList, vect
 	return 0;
 }
 
-int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<std::string> AllLociNameList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<std::string> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<std::string>& AllAlleles)
+int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<std::string> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<std::string>& AllAlleles)
 {
 	//declare variables
     std::string foo;
@@ -304,10 +304,17 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
     vector<std::string> TempList;
     std::string NewAllele;
 
+	if (procid == 0) cout << "  Reading data matrix...\n";
+	//start the clock
+	time_t startm,endm;
+	time (&startm);
+
 	//read the whole file into a buffer using fread
     char * buffer;
 	buffer = MyBigRead(DatFilePath);
 	stringstream s(buffer); //put giant char array into a stream
+	
+	strcpy(buffer,""); //clear char*
 	
     //read buffer into a vector, one line per item
     while (getline(s, foo))//get line from s, put in foo, consecutively
@@ -315,10 +322,54 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 	 	bufvec.push_back(foo);  
 	}
 	
+	s.str(""); //clear stringstream
+	int row = bufvec.size();
+	
 	//sort vector so that individuals from the same population form consecutive elements
 	std::sort(bufvec.begin(), bufvec.end()); //no need to use fancy sort, lexicographic should be fine
 	
-	//break up vector into a 3d vector by population:  { { {pop1ind1elems},{pop1ind2elems},...}, { {pop2ind1elems},{pop1ind2elems},...} }
+	//stop the clock
+	time (&endm);
+	double dif = difftime (endm,startm);
+	if (procid == 0) 
+	{
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+	
+	/*cout << "bufvec sorted. breaking into 1d. This is only ~15% faster than 3d, 50 sec vs 60 sec.\n";
+	//start the clock
+	time_t startm,endm;
+	time (&startm);
+	
+	//get size of vector
+	TempList = split(bufvec[0]);
+	int col = TempList.size();
+	int row = bufvec.size();
+	vector<std::string>().swap(TempList); //clear TempList
+	
+	cout << "row*col"<<(row*col)<<".\n";
+
+	vector<std::string> test(row*col);
+	for (i=0;i<bufvec.size();++i)
+	{
+		TempList = split(bufvec[i]); //split line i on whitespace
+		for (j=0;j<TempList.size();++j)
+		{
+			test[(i*col)+j]=TempList[j];	
+		}
+	}
+	cout << "test.size()="<<test.size()<<".\n";
+	//stop the clock
+	time (&endm);
+	double dif = difftime (endm,startm);
+	cout << "Elapsed time = "<< dif << " seconds.\n\n";
+	*/
+	
+	if (procid == 0) cout << "  Building data structures...\n";
+	time (&startm);
+
+	//break up vector into a 3d vector by population:  { { {pop1ind1elems},{pop1ind2elems},...}, { {pop2ind1elems},{pop2ind2elems},...} }
 	vector<vector<vector<std::string> > > ByPop3d;
 	for (i=0;i<bufvec.size();++i)
 	{
@@ -326,7 +377,7 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 		NewPopID = TempList[0];
 		IndivPerPop.push_back(NewPopID); //add the pop ID to a list to calc pop sizes later
 
-		if (NewPopID != OldPopID) //then create a new population in ByPop2D
+		if (NewPopID != OldPopID) //then create a new population in ByPop3D
 		{
 			ByPop3d.resize(ByPop3d.size() + 1);
 			
@@ -337,9 +388,21 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 		//push vector TempList, containing elements on current line, onto last item of ByPop3d, which might be a new population as added just above
 		ByPop3d[ByPop3d.size()-1].push_back(TempList);
 		
-		OldPopID = NewPopID; 
+		OldPopID = NewPopID;
+		vector<std::string>().swap(TempList); //clear TempList
 	}
 	
+	vector<std::string>().swap(bufvec); //clear bufvec
+		
+	//stop the clock
+	time (&endm);
+	dif = difftime (endm,startm);
+	if (procid == 0) 
+	{
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+
 	/*//print out ByPop3d
 	for (i=0;i<ByPop3d.size();++i)
 	{
@@ -356,6 +419,9 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 	
 	}*/
 
+	if (procid == 0) cout << "  Condensing data...\n";
+	time (&startm);
+
 	//resize AllAlleleByPopListSet
 	AllAlleleByPopListSet.resize(ByPop3d.size());//resize number of populations
 	for (i=0;i<AllAlleleByPopListSet.size();++i)
@@ -364,6 +430,10 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 																		   //the index in ColKey is the locus index in AllAllelesByPopList level 2
 																		   //the value of ColKey is the index of the allele in ByPop3d level 3
 	}
+		
+
+	//calculate size of AllAlleles
+	AllAlleles.reserve(row*AllColumnIDList.size());
 	
 	//condense alleles by locus in AllAllelesByPopList, within each population
 	int AlleleIndex;
@@ -383,8 +453,22 @@ int MyProcessDatFileIII(char* DatFilePath, vector<int> AllColumnIDList, vector<s
 						AllAlleleByPopListSet[i][k].insert(NewAllele); //add the allele to the set of unique alleles at locus k, pop i	
 				}
 			}
+			vector<std::string>().swap(TempList); //clear TempList
 		}
 	}
+	
+	vector<vector<vector<std::string> > >().swap(ByPop3d); //clear ByPop3d
+			
+	//stop the clock
+	time (&endm);
+	dif = difftime (endm,startm);
+	if (procid == 0) 
+	{
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+
+
 	return 0;
 }
 
@@ -447,6 +531,7 @@ vector<std::string> MyRemoveTargetAlleles(vector<std::string> AllAlleles, vector
 	unsigned int checker, j;
 	unsigned int i=0;
 	vector<std::string> AllRefAlleles;
+	
 	while (i<AllAlleles.size())
 	{
 		j=0;
@@ -529,7 +614,10 @@ void MyMakeRefAllelesByLocus(vector<vector<std::string> > RefAllelesIntoRows, ve
 	
 	//update RefAllelesByLocus
 	RefAllelesByLocus = lola;
+	
+	vector<std::pair<std::string, vector<std::string> > >().swap(lola); //clear lola
 
+	
 	//print out each locus name followed by all the alleles found within it
 	/*for (i=0;i<lola.size();++i)
 	{
@@ -599,6 +687,8 @@ int main( int argc, char* argv[] )
 	MPI::Init ();  //Initialize MPI.
 	int procid = MPI::COMM_WORLD.Get_rank ( );  //Get the individual process ID.
 
+	//mallopt (M_TRIM_THRESHOLD, 1024);
+	
 	//***MPI: ALL PROCESSORS PARSE THE COMMAND LINE***
 	//get mandatory command line arguments
 	char* VarFilePath = argv[1];
@@ -716,27 +806,31 @@ int main( int argc, char* argv[] )
 	}
 	
 	//catch some errors in the command line
-	if (MinCoreSize > MaxCoreSize) 
+	if (DoM == "yes")
 	{
-		if ( procid == 0 ) cout << "ERROR:  The minimum core size ("<<MinCoreSize<<") is greater than the maximum core size.  Please correct the command line arguments.  Quitting...\n\n";
-    	exit (EXIT_FAILURE); //master0 reports above, everybody quits here
-    }
-    if (MinCoreSize == 1)
-    {
-		if ( procid == 0 ) cout << "ERROR:  A minimum core size of 1 is not allowed.  Please correct the command line.  Quitting...\n\n"; 
-		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+		if (MinCoreSize > MaxCoreSize) 
+		{
+			if ( procid == 0 ) cout << "ERROR:  The minimum core size ("<<MinCoreSize<<") is greater than the maximum core size.  Please correct the command line arguments.  Quitting...\n\n";
+    		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+    	}
+		if (MinCoreSize == 1)
+		{
+			if ( procid == 0 ) cout << "ERROR:  A minimum core size of 1 is not allowed.  Please correct the command line.  Quitting...\n\n"; 
+			exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+		}
+	
+		if (KernelAccessionList.size() > MinCoreSize)
+		{
+			if ( procid == 0 ) cout << "ERROR:  The number of mandatory accessions ("<<KernelAccessionList.size()
+				 <<") is greater than the minimum core size ("<<MinCoreSize
+				 <<").  Please modify the kernel file or the command line argument.  Quitting...\n\n";
+				exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+		}
 	}
 	if (Kernel == "yes" && Ideal == "yes" && DoM == "no")
 	{
 		if ( procid == 0 ) cout << "ERROR:  A* search cannot be performed with a kernel file.  Please correct the command line.  Quitting...\n\n";
 		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
-	}
-    if (KernelAccessionList.size() > MinCoreSize)
-    {
-		if ( procid == 0 ) cout << "ERROR:  The number of mandatory accessions ("<<KernelAccessionList.size()
-			 <<") is greater than the minimum core size ("<<MinCoreSize
-        	 <<").  Please modify the kernel file or the command line argument.  Quitting...\n\n";
-			exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
 	
 
@@ -751,7 +845,7 @@ int main( int argc, char* argv[] )
 	vector<std::string> AllLociNameList;
 	vector<int> ActiveColumnIDList;
 	vector<std::string> ActiveLociNameList;
-    vector<int> TargetColumnIDList;
+	vector<int> TargetColumnIDList;
 	vector<std::string> TargetLociNameList;
 	vector<vector<int> > ColKeyToAllAlleleByPopList;
 	vector<int> ReferenceOrTargetKey;
@@ -791,7 +885,7 @@ int main( int argc, char* argv[] )
 				cout << TargetLociNameList[i] << "\t" << (TargetColumnIDList[i] + 1) << "\n";
 			}
 		}
-
+		
 		//process .dat file
 		cout << "\nProcessing .dat file...\n";
 	}
@@ -800,11 +894,11 @@ int main( int argc, char* argv[] )
 	vector<std::string> FullAccessionNameList;
 	vector<std::string> IndivPerPop;
 	vector<std::string> AllAlleles;
-
+	
 	//switch for new MyProcessDatFileIII
 	vector<vector<set<std::string> > > AllAlleleByPopListSet; //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
-	MyProcessDatFileIII(DatFilePath, AllColumnIDList, AllLociNameList, ColKeyToAllAlleleByPopList, AllAlleleByPopListSet, FullAccessionNameList, IndivPerPop, AllAlleles);
+	MyProcessDatFileIII(DatFilePath, procid, AllColumnIDList, ColKeyToAllAlleleByPopList, AllAlleleByPopListSet, FullAccessionNameList, IndivPerPop, AllAlleles);
 
 	vector<vector<vector<std::string> > > AllAlleleByPopList( AllAlleleByPopListSet.size(), vector<vector<std::string> >(UniqLociNamesList.size()) ); //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
@@ -825,6 +919,13 @@ int main( int argc, char* argv[] )
 			}
 		}*/
 
+	time_t startd,endd;
+	if (procid == 0) 
+	{
+		cout << "  Converting data...\n";
+		time (&startd);
+	}
+
 	//convert set to vector for further processing
 	for (i=0;i<AllAlleleByPopList.size();++i)
 	{
@@ -834,12 +935,35 @@ int main( int argc, char* argv[] )
 			AllAlleleByPopList[i][j] = ttvec;
 		}
 	}
+	vector<vector<set<std::string> > >().swap(AllAlleleByPopListSet); //clear variable, no longer needed
 	
+	double dif = difftime (endd,startd);
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+
+		cout << "  Separating reference and target loci...\n";
+		time (&startd);
+	}
+
 	//sort AllAlleleByPopList into reference and target loci lists
 	vector<vector<vector<std::string> > > ActiveAlleleByPopList; 
 	vector<vector<vector<std::string> > > TargetAlleleByPopList; 
 	MyReduceToRef(AllAlleleByPopList, ReferenceOrTargetKey, ActiveAlleleByPopList, TargetAlleleByPopList); //latter 2 variables updated as reference
-			
+	
+	vector<vector<vector<std::string> > >().swap(AllAlleleByPopList); //clear variable, no longer needed
+		
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+		
 		/*	
 		//Print out FullAccessionNameList
 		cout << "\n\nPopulation names\n";
@@ -886,12 +1010,15 @@ int main( int argc, char* argv[] )
 	unsigned int NumberOfAccessions = ActiveAlleleByPopList.size();
 	
 	//catch a possible error in the command line
-	if (MaxCoreSize > NumberOfAccessions)
+	if (DoM == "yes")
 	{
-		if ( procid == 0 ) cout << "ERROR:  Maximum core size of "<<MaxCoreSize<< " is greater than the number of accessions.  Please set to a lower value. Quitting...\n\n";
-		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+		if (MaxCoreSize > NumberOfAccessions)
+		{
+			if ( procid == 0 ) cout << "ERROR:  Maximum core size of "<<MaxCoreSize<< " is greater than the number of accessions.  Please set to a lower value. Quitting...\n\n";
+			exit (EXIT_FAILURE); //master0 reports above, everybody quits here
+		}
 	}
-
+	
 	//get number of loci
 	int NumLoci = ActiveAlleleByPopList[1].size();
 	
@@ -905,23 +1032,79 @@ int main( int argc, char* argv[] )
 		//cout << "b="<<b<<"\n";	
 	}
 	
-	//calculate allele frequencies
-	
+	/*/calculate allele frequencies
+	if (procid == 0) 
+	{
+		cout << "  Calculating allele frequencies...\n";
+		time (&startd);
+	}
+	*/
+	if (procid == 0) 
+	{
+		cout << "  Removing target alleles...\n";
+		time (&startd);
+	}
 	//1. remove target alleles from AllAlleles
 	vector<std::string> AllRefAlleles = MyRemoveTargetAlleles(AllAlleles, AllColumnIDList, TargetColumnIDList);
+	vector<std::string>().swap(AllAlleles); //clear variable, no longer needed
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+
+		cout << "  AllRefAlleles to 2d...\n";
+		time (&startd);
+	}
 	
 	//2. put AllRefAlleles into a 2d vector, samples are rows
 	vector<vector<std::string> > RefAllelesIntoRows(IndivPerPop.size(), vector<std::string> ( ActiveLociNameList.size() ));
 	MyMakeRefAllelesIntoRows(AllRefAlleles, ActiveLociNameList, RefAllelesIntoRows);
+	vector<std::string>().swap(AllRefAlleles); //clear variable, no longer needed
+	
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+
+		cout << "  Extract to vector of pairs...\n";
+		time (&startd);
+	}
+	
 	
 	//3. extract alleles into vector of pairs (ignores missing data 9999)
 	vector<std::pair<std::string, vector<std::string> > > RefAllelesByLocus; // first = locus name, second = vector of all alleles present, updated as reference below
 	MyMakeRefAllelesByLocus(RefAllelesIntoRows, ActiveLociNameList, RefAllelesByLocus);
+	vector<vector<std::string> >().swap(RefAllelesIntoRows); //clear variable, no longer needed
+	
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+
+		cout << "  Compute allele freqs...\n";
+		time (&startd);
+	}
+	
 	
 	//4. calculate allele frequencies, finally (ignores missing data 9999)
 	vector<Alfreq> AlleleFrequencies;//(RefAllelesByLocus.size());  //declare vector of struct Alfreq
 	MyCalculateAlleleFrequencies(RefAllelesByLocus, AlleleFrequencies);
+	vector<std::pair<std::string, vector<std::string> > >().swap(RefAllelesByLocus); //clear variable, no longer needed
 	
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+
 		/*
 		//print out structs containing allele frequencies
 		Alfreq laf;
@@ -976,49 +1159,53 @@ int main( int argc, char* argv[] )
 		
 	//stop the clock
 	time (&endi);
-	double dif = difftime (endi,starti);
+	dif = difftime (endi,starti);
 
 	//***MPI: MASTER 0 PRINTS DAT FILE SPECS
 	if ( procid == 0 ) 
 	{
 		cout << "Input files processed.  Elapsed time = "<< dif << " seconds.\n\n";
 	
-		cout << "Number of accessions = " << NumberOfAccessions << ", Number of loci = " << NumLoci;
+		cout << "Number of accessions = " << NumberOfAccessions << ", Number of reference loci = " << NumLoci 
+			<< "\n  Number of target loci = "<< TargetAlleleByPopList[1].size();
 		if (Kernel == "yes") cout << ", Number of kernel accessions = " << KernelAccessionList.size() << "\n\n";
 		else cout << "\n\n";
 	}
 	
-	//PERFORM A*
-	if (Ideal == "yes")
+	//PERFORM A* USING MASTER 0 ONLY (A* uses OpenMP)
+	if ( procid == 0 )
 	{
-		int parallelism_enabled = 1; //0=no, not 0 = yes
-		if (parallelism_enabled == 0) cout << "\nBeginning serial A* search...\n\n";
-		else cout << "\nBeginning parallel A* search...\n\n";
+		if (Ideal == "yes")
+		{
+			int parallelism_enabled = 1; //0=no, not 0 = yes
+			if (parallelism_enabled == 0) cout << "\nBeginning serial A* search...\n\n";
+			else cout << "\nBeginning parallel A* search...\n\n";
 				
-		//start the clock
-		time_t start1,end1;
-		time (&start1);
+			//start the clock
+			time_t start1,end1;
+			time (&start1);
 
-		//run A*
-		aStar
-		(
-			IdealFilePath, 
-			ActiveAlleleByPopList, 
-			ActiveMaxAllelesList, 
-			UniqLociNamesList, 
-			ReferenceOrTargetKey, 
-			FullAccessionNameList, 
-			PloidyList, 
-			PopSizes, 
-			AlleleFrequencies, 
-			parallelism_enabled
-		);
+			//run A*
+			aStar
+			(
+				IdealFilePath, 
+				ActiveAlleleByPopList, 
+				ActiveMaxAllelesList, 
+				UniqLociNamesList, 
+				ReferenceOrTargetKey, 
+				FullAccessionNameList, 
+				PloidyList, 
+				PopSizes, 
+				AlleleFrequencies, 
+				parallelism_enabled
+			);
 		
-		//stop the clock
-		time (&end1);
-		double dif = difftime (end1,start1);
-		cout << "\nA* search complete.  Elapsed time = "<< dif << " seconds.\n\n";
-	}	
+			//stop the clock
+			time (&end1);
+			double dif = difftime (end1,start1);
+			cout << "\nA* search complete.  Elapsed time = "<< dif << " seconds.\n\n";
+		}	
+	}
 	
 	//PERFORM M+
 	if (DoM == "yes")
