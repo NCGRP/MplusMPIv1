@@ -3,7 +3,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
-#include <malloc/malloc.h>
+//#include <malloc/malloc.h>
 #include <math.h>
 #include <mpi.h>
 #include <numeric>

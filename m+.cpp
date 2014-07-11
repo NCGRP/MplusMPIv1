@@ -1225,8 +1225,11 @@ int main( int argc, char* argv[] )
 	//***MPI: MASTER 0 PRINTS DAT FILE SPECS
 	if ( procid == 0 ) 
 	{
-		cout << "Input files processed.  Elapsed time = "<< dif << " seconds.\n\n";
-	
+		if (dif == 1)
+			cout << "Input files processed.  Elapsed time = "<< dif << " second.\n\n";
+		else
+			cout << "Input files processed.  Elapsed time = "<< dif << " seconds.\n\n";
+		
 		cout << "Number of accessions = " << NumberOfAccessions << ", Number of reference loci = " << NumLoci 
 			<< "\n  Number of target loci = "<< TargetAlleleByPopList[1].size();
 		if (Kernel == "yes") cout << ", Number of kernel accessions = " << KernelAccessionList.size() << "\n\n";
