@@ -998,7 +998,7 @@ int main( int argc, char* argv[] )
 	time_t startd,endd;
 	if (procid == 0) 
 	{
-		cout << "  Converting data structure...\n";
+		cout << "  Converting data structures...\n";
 		time (&startd);
 	}
 
