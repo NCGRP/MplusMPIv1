@@ -239,10 +239,10 @@ void MyUpdateActiveAlleleList(vector<vector<std::string> >& ActiveAlleleList, in
 }
 
 //reduces the master vector of all alleles into subsets containing reference or target loci only
-int MyReduceToRef(vector<vector<vector<std::string> > > AllAlleleByPopList, vector<int> ReferenceOrTargetKey, vector<vector<vector<std::string> > >& ActiveAlleleByPopList, vector<vector<vector<std::string> > >& TargetAlleleByPopList)
+int MyReduceToRef(vector<vector<vector<int> > > AllAlleleByPopList, vector<int> ReferenceOrTargetKey, vector<vector<vector<int> > >& ActiveAlleleByPopList, vector<vector<vector<int> > >& TargetAlleleByPopList)
 {
 	unsigned int r, t, i, j;
-	vector<std::string> b;
+	vector<int> b;
 	
 	//resize level 1 of vectors, they contain the same number of populations as AllAlleleByPopList
 	ActiveAlleleByPopList.resize(AllAlleleByPopList.size());
@@ -263,7 +263,6 @@ int MyReduceToRef(vector<vector<vector<std::string> > > AllAlleleByPopList, vect
 		for (j=0;j<AllAlleleByPopList[i].size();++j) //iterate thru loci
 		{
 			b.clear();
-			//b.resize( AllAlleleByPopList[i][j].size() ); //necessary for OpenMP, but not MPI
 			b = AllAlleleByPopList[i][j];
 			
 			if (ReferenceOrTargetKey[j] == 0) //it is a reference locus
@@ -281,28 +280,26 @@ int MyReduceToRef(vector<vector<vector<std::string> > > AllAlleleByPopList, vect
 	return 0;
 }
 
-int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<std::string> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<std::string>& AllAlleles)
+int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<int> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<int>& AllAlleles)
 {
 	//declare variables
-    std::string foo;
-    vector<std::string> foovector;
-    std::string OldLocusName;
-    std::string CurrLocusName;
-    vector<std::string> LocusNames;
-    vector<vector<std::string> > ActiveAlleleList;
-    vector<std::string> OldAlleles;
-    vector<vector<std::string> > TempList2d;
-    vector<std::string> FilteredData;
-    vector<std::string> ListToFilter;
-    std::string IsNewPop = "no";
-    vector<std::string>::iterator it;
+	std::string foo;
+	vector<std::string> foovector;
+	std::string OldLocusName;
+	std::string CurrLocusName;
+	vector<std::string> LocusNames;
+	vector<vector<std::string> > ActiveAlleleList;
+	vector<std::string> OldAlleles;
+	vector<vector<std::string> > TempList2d;
+	vector<std::string> FilteredData;
+	vector<std::string> ListToFilter;
+	std::string IsNewPop = "no";
+	vector<std::string>::iterator it;
 
-    unsigned int i,j,k,l;
-    vector<std::string> bufvec;
-    std::string NewPopID;
-    std::string OldPopID = "init*@#rt4"; //use an unlikely population name for the initialization value
-    vector<std::string> TempList;
-    std::string NewAllele;
+	unsigned int i,j,k,l;
+	vector<std::string> bufvec;
+	std::string NewPopID;
+	std::string OldPopID = "init*@#rt4"; //use an unlikely population name for the initialization value
 
 	if (procid == 0) cout << "  Reading data matrix...\n";
 	//start the clock
@@ -310,23 +307,28 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	time (&startm);
 
 	//read the whole file into a buffer using fread
-    char * buffer;
+	char * buffer;
 	buffer = MyBigRead(DatFilePath);
 	stringstream s(buffer); //put giant char array into a stream
 	
 	strcpy(buffer,""); //clear char*
 	
-    //read buffer into a vector, one line per item
-    while (getline(s, foo))//get line from s, put in foo, consecutively
-    {
-	 	bufvec.push_back(foo);  
+	//read buffer into a vector, one line per item
+	while (getline(s, foo))//get line from s, put in foo, consecutively
+	{
+		bufvec.push_back(foo);  
 	}
 	
 	s.str(""); //clear stringstream
 	int row = bufvec.size();
-	
+		
 	//sort vector so that individuals from the same population form consecutive elements
 	std::sort(bufvec.begin(), bufvec.end()); //no need to use fancy sort, lexicographic should be fine
+		
+	//split lines of bufvec into 2d vector
+	vector<vector<std::string> > bufvec2d(bufvec.size()); 
+	for (i=0;i<bufvec.size();++i) bufvec2d[i] = split(bufvec[i]);
+	vector<std::string>().swap(bufvec); //clear bufvec
 	
 	//stop the clock
 	time (&endm);
@@ -334,47 +336,123 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	if (procid == 0) 
 	{
 		if (dif==1) cout << "    " << dif << " second.\n";	
-		else cout << "    " << dif << " seconds.\n";	
+		else cout << "    " << dif << " seconds.\n";
 	}
 	
-	/*cout << "bufvec sorted. breaking into 1d. This is only ~15% faster than 3d, 50 sec vs 60 sec.\n";
-	//start the clock
-	time_t startm,endm;
+	
+/*	//convert alleles to integer coding to save memory, vector access order 1
+	if (procid == 0) cout << "  Recoding data...\n";
 	time (&startm);
-	
-	//get size of vector
-	TempList = split(bufvec[0]);
-	int col = TempList.size();
-	int row = bufvec.size();
-	vector<std::string>().swap(TempList); //clear TempList
-	
-	cout << "row*col"<<(row*col)<<".\n";
 
-	vector<std::string> test(row*col);
-	for (i=0;i<bufvec.size();++i)
+	vector<vector<int> > bufvec2dint(bufvec2d.size(), vector<int>(bufvec2d[0].size())); //declare and size vector to hold new integer coded alleles
+	for (i=0;i<ColKeyToAllAlleleByPopList.size();++i) //go thru each locus
 	{
-		TempList = split(bufvec[i]); //split line i on whitespace
-		for (j=0;j<TempList.size();++j)
+		//get all alleles at the locus
+		vector<std::string> AllelesEncountered; //will contain the unique set of alleles at the locus
+		for (j=0;j<ColKeyToAllAlleleByPopList[i].size();++j) //go thru all columns for the locus
 		{
-			test[(i*col)+j]=TempList[j];	
+			int ColIndex = ColKeyToAllAlleleByPopList[i][j];
+			for (k=0;k<bufvec2d.size();++k) //go thru all individuals
+			{
+				std::string a = bufvec2d[k][ColIndex]; //get alleles consecutively by column
+
+				if (a == "9999") bufvec2dint[k][ColIndex] = -9999; //add the missing data value
+				else
+				{
+					int AlleleInt; //the new, integerized, name of the allele
+					std::vector<std::string>::iterator itr = std::find(AllelesEncountered.begin(), AllelesEncountered.end(), a);
+					if (itr != AllelesEncountered.end()) //the allele has been found before
+					{
+						AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
+						bufvec2dint[k][ColIndex] = AlleleInt; //add the new name
+					}
+					else // you have a new allele
+					{
+						AllelesEncountered.push_back(a); //add new allele to list of those encountered
+						AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
+						bufvec2dint[k][ColIndex] = AlleleInt;
+					}
+				}
+			}
 		}
 	}
-	cout << "test.size()="<<test.size()<<".\n";
+	
 	//stop the clock
 	time (&endm);
-	double dif = difftime (endm,startm);
-	cout << "Elapsed time = "<< dif << " seconds.\n\n";
-	*/
+	dif = difftime (endm,startm);
+	if (procid == 0) 
+	{
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+*/
+
+
+	//convert alleles to integer coding to save memory, vector access order 2
+	if (procid == 0) cout << "  Recoding data...\n";
+	time (&startm);
+
+	vector<vector<int> > bufvec2dint(bufvec2d.size(), vector<int>(bufvec2d[0].size())); //declare and size vector to hold new integer coded alleles
+	unsigned int iz = ColKeyToAllAlleleByPopList.size();
+	for (unsigned int i=0;i<iz;++i) //go thru each locus
+	{
+		//get all alleles at the locus
+		vector<std::string> AllelesEncountered; //will contain the unique set of alleles at the locus
+		unsigned int kz = bufvec2d.size();
+		for (unsigned int k=0;k<kz;++k) //go thru all individuals
+		{
+			unsigned int jz = ColKeyToAllAlleleByPopList[i].size();
+			for (unsigned int j=0;j<jz;++j) //get all alleles for an individual at this locus, then move to next indiv
+			{
+				int ColIndex = ColKeyToAllAlleleByPopList[i][j];
+				std::string a = bufvec2d[k][ColIndex];  
+
+				if (a == "9999") bufvec2dint[k][ColIndex] = -9999; //add the missing data value
+				else
+				{
+					int AlleleInt; //the new, integerized, name of the allele
+					std::vector<std::string>::iterator itr = std::find(AllelesEncountered.begin(), AllelesEncountered.end(), a);
+					if (itr != AllelesEncountered.end()) //the allele has been found before
+					{
+						AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
+						bufvec2dint[k][ColIndex] = AlleleInt; //add the new name
+					}
+					else // you have a new allele
+					{
+						AllelesEncountered.push_back(a); //add new allele to list of those encountered
+						AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
+						bufvec2dint[k][ColIndex] = AlleleInt;
+					}
+				}
+			}
+		}
+	}
+	
+	//stop the clock
+	time (&endm);
+	dif = difftime (endm,startm);
+	if (procid == 0) 
+	{
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+
 	
 	if (procid == 0) cout << "  Building data structures...\n";
 	time (&startm);
+	
+	//simplify bufvec2d by retaining only the first column, with POPID, then swap clear to save memory
+	vector<string> PopIDvec;
+	for (i=0;i<bufvec2d.size();++i)
+		PopIDvec.push_back(bufvec2d[i][0]);
+	vector<vector<std::string> >().swap(bufvec2d); //clear bufvec2d
 
 	//break up vector into a 3d vector by population:  { { {pop1ind1elems},{pop1ind2elems},...}, { {pop2ind1elems},{pop2ind2elems},...} }
-	vector<vector<vector<std::string> > > ByPop3d;
-	for (i=0;i<bufvec.size();++i)
+	vector<vector<vector<int> > > ByPop3d;
+	for (i=0;i<bufvec2dint.size();++i)
 	{
-		TempList = split(bufvec[i]); //split line i on whitespace	
-		NewPopID = TempList[0];
+		//NewPopID = bufvec2d[i][0];  //access string in bufvec2d
+		NewPopID = PopIDvec[i];
 		IndivPerPop.push_back(NewPopID); //add the pop ID to a list to calc pop sizes later
 
 		if (NewPopID != OldPopID) //then create a new population in ByPop3D
@@ -382,18 +460,17 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 			ByPop3d.resize(ByPop3d.size() + 1);
 			
 			//add the new population name to the AccessionNameList
-			FullAccessionNameList.push_back (NewPopID);
+			FullAccessionNameList.push_back(NewPopID);
 		}
 		
-		//push vector TempList, containing elements on current line, onto last item of ByPop3d, which might be a new population as added just above
-		ByPop3d[ByPop3d.size()-1].push_back(TempList);
+		//push row of integer elements on current line, onto last item of ByPop3d, which might be a new population as added just above
+		//remember that the first three columns are 0 in bufvec2dint, so will also be 0 in ByPop3d
+		ByPop3d[ByPop3d.size()-1].push_back(bufvec2dint[i]);
 		
 		OldPopID = NewPopID;
-		vector<std::string>().swap(TempList); //clear TempList
 	}
-	
-	vector<std::string>().swap(bufvec); //clear bufvec
-		
+	vector<vector<int> >().swap(bufvec2dint); //clear bufvec2dint, the integerized data is in ByPop3d
+
 	//stop the clock
 	time (&endm);
 	dif = difftime (endm,startm);
@@ -441,23 +518,21 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	{
 		for (j=0;j<ByPop3d[i].size();++j) //go thru indivs
 		{
-			TempList = ByPop3d[i][j]; //get the list of column entries in an indiv
 			for (k=0;k<ColKeyToAllAlleleByPopList.size();++k) //go through each locus
 			{
 				for (l=0;l<ColKeyToAllAlleleByPopList[k].size();++l) //assign columns to loci
 				{
 					AlleleIndex = ColKeyToAllAlleleByPopList[k][l];
-					NewAllele = ByPop3d[i][j][AlleleIndex]; //get the allele in the specified column
+					int NewAllele = ByPop3d[i][j][AlleleIndex]; //get the allele in the specified column
 					AllAlleles.push_back(NewAllele); //add the allele to the list of all alleles, missing data included
-					if (NewAllele != "9999") //exclude missing data
+					if (NewAllele != -9999) //exclude missing data
 						AllAlleleByPopListSet[i][k].insert(NewAllele); //add the allele to the set of unique alleles at locus k, pop i	
 				}
 			}
-			vector<std::string>().swap(TempList); //clear TempList
 		}
 	}
 	
-	vector<vector<vector<std::string> > >().swap(ByPop3d); //clear ByPop3d
+	vector<vector<vector<int> > >().swap(ByPop3d); //clear ByPop3d
 			
 	//stop the clock
 	time (&endm);
@@ -472,7 +547,7 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	return 0;
 }
 
-//removes duplicate alleles and missing data (9999) from the supplied vector
+/*//removes duplicate alleles and missing data (9999) from the supplied vector
 vector<std::string> MyFilterDuplicates(vector<std::string> ListToFilter)
 {
 	//remove duplicates
@@ -494,14 +569,15 @@ vector<std::string> MyFilterDuplicatesII(vector<std::string> ListToFilter)
 	
 	return ListToFilter;
 }
+*/
 
 //returns maximum number of alleles possible at each locus for active and target
-vector<int> MyGetMaxs(vector<vector<vector<std::string> > > ActiveAlleleByPopList)
+vector<int> MyGetMaxs(vector<vector<vector<int> > > ActiveAlleleByPopList)
 {
 	unsigned int i, j, k;
 	vector<int> ActiveMaxAllelesList;
-	vector<std::string> CurrLoc;
-	set<std::string> NewSet;
+	vector<int> CurrLoc;
+	set<int> NewSet;
 	
 	for (i=0;i<ActiveAlleleByPopList[0].size();++i)
 	{
@@ -526,11 +602,11 @@ bool fileExists(const char *fileName)
     return infile.good();
 }
 
-vector<std::string> MyRemoveTargetAlleles(vector<std::string> AllAlleles, vector<int> AllColumnIDList, vector<int> TargetColumnIDList)
+vector<int> MyRemoveTargetAlleles(vector<int> AllAlleles, vector<int> AllColumnIDList, vector<int> TargetColumnIDList)
 {
 	unsigned int checker, j;
 	unsigned int i=0;
-	vector<std::string> AllRefAlleles;
+	vector<int> AllRefAlleles;
 	
 	while (i<AllAlleles.size())
 	{
@@ -557,7 +633,7 @@ vector<std::string> MyRemoveTargetAlleles(vector<std::string> AllAlleles, vector
 }	
 
 //places a continuous string of alleles into a 2d vector with samples as rows
-void MyMakeRefAllelesIntoRows(vector<std::string> AllRefAlleles, vector<std::string> ActiveLociNameList, vector<vector<std::string> >& RefAllelesIntoRows)
+void MyMakeRefAllelesIntoRows(vector<int> AllRefAlleles, vector<std::string> ActiveLociNameList, vector<vector<int> >& RefAllelesIntoRows)
 {
 	unsigned int j; //counts items per row
 	unsigned int i=0, k=0; //k is the row number
@@ -575,10 +651,10 @@ void MyMakeRefAllelesIntoRows(vector<std::string> AllRefAlleles, vector<std::str
 }	
 
 //remove columns of data to make 2d vector of alleles by locus 
-void MyMakeRefAllelesByLocus(vector<vector<std::string> > RefAllelesIntoRows, vector<string> ActiveLociNameList, vector<std::pair<std::string, vector<std::string> > >& RefAllelesByLocus)
+void MyMakeRefAllelesByLocus(vector<vector<int> > RefAllelesIntoRows, vector<string> ActiveLociNameList, vector<std::pair<std::string, vector<int> > >& RefAllelesByLocus)
 {
-	vector<std::pair<std::string, vector<std::string> > > lola;
-	std::pair<std::string, vector<std::string> > la; //locus name, allele list pair
+	vector<std::pair<std::string, vector<int> > > lola;
+	std::pair<std::string, vector<int> > la; //locus name, allele list pair
 	
 	unsigned int i, j, k;
 	int locindex;
@@ -607,15 +683,15 @@ void MyMakeRefAllelesByLocus(vector<vector<std::string> > RefAllelesIntoRows, ve
 		//add the column of data defined by locname to the appropriate pair.second, defined by locindex in lola
 		for (k=0;k<RefAllelesIntoRows.size();++k)
 		{
-			b = RefAllelesIntoRows[k][i];
-			if (b != "9999") lola[locindex].second.push_back(b); //ignore missing data
+			int al = RefAllelesIntoRows[k][i];
+			if (al != -9999) lola[locindex].second.push_back(al); //ignore missing data
 		}
 	}
 	
 	//update RefAllelesByLocus
 	RefAllelesByLocus = lola;
 	
-	vector<std::pair<std::string, vector<std::string> > >().swap(lola); //clear lola
+	vector<std::pair<std::string, vector<int> > >().swap(lola); //clear lola
 
 	
 	//print out each locus name followed by all the alleles found within it
@@ -633,14 +709,14 @@ void MyMakeRefAllelesByLocus(vector<vector<std::string> > RefAllelesIntoRows, ve
 }
 
 //calculates allele frequencies for all alleles at all loci, updates vector of struct Alfreq, which contains the relational data
-void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<std::string> > > RefAllelesByLocus, vector<Alfreq>& AlleleFrequencies)
+void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<int> > > RefAllelesByLocus, vector<Alfreq>& AlleleFrequencies)
 {
 	unsigned int i, j, z;
 	double freq;
 	std::string b;
-	vector<std::string> AllAlleles;
-	vector<std::string> UniqAlleles;
-	set<std::string> AlleleSet;
+	vector<int> AllAlleles;
+	vector<int> UniqAlleles;
+	set<int> AlleleSet;
 
 	Alfreq laf; //locusname, allelenames, frequencies
 	static const struct Alfreq emptylaf; //this will be used to zero struct between loops
@@ -649,7 +725,7 @@ void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<std::stri
 	{
 		//empty containers
 		laf = emptylaf;
-		vector<std::string>().swap(UniqAlleles); //clear UniqAlleles
+		vector<int>().swap(UniqAlleles); //clear UniqAlleles
 		AlleleSet.clear(); //clear AlleleSet
 		
 		//get locus name, add to struct
@@ -667,9 +743,9 @@ void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<std::stri
 		//for each allele in UniqAlleles count the number of occurrences in AllAlleles, calc frequency, add allele name and freq to struct
 		for (j=0;j<UniqAlleles.size();++j)
 		{
-			b = UniqAlleles[j];
-			laf.allelenames.push_back(b); //add allele name to struct
-			z = count(AllAlleles.begin(), AllAlleles.end(), b);
+			int al = UniqAlleles[j];
+			laf.allelenames.push_back(al); //add allele name to struct
+			z = count(AllAlleles.begin(), AllAlleles.end(), al);
 			freq = double(z)/double(AllAlleles.size());
 			laf.frequencies.push_back(freq); //add allele frequency to struct
 		}
@@ -893,14 +969,14 @@ int main( int argc, char* argv[] )
 	//***MPI: ALL PROCESSORS READ .DAT FILE***
 	vector<std::string> FullAccessionNameList;
 	vector<std::string> IndivPerPop;
-	vector<std::string> AllAlleles;
+	vector<int> AllAlleles;
 	
 	//switch for new MyProcessDatFileIII
-	vector<vector<set<std::string> > > AllAlleleByPopListSet; //structure of this 3D vector is:
+	vector<vector<set<int> > > AllAlleleByPopListSet; //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
 	MyProcessDatFileIII(DatFilePath, procid, AllColumnIDList, ColKeyToAllAlleleByPopList, AllAlleleByPopListSet, FullAccessionNameList, IndivPerPop, AllAlleles);
 
-	vector<vector<vector<std::string> > > AllAlleleByPopList( AllAlleleByPopListSet.size(), vector<vector<std::string> >(UniqLociNamesList.size()) ); //structure of this 3D vector is:
+	vector<vector<vector<int> > > AllAlleleByPopList( AllAlleleByPopListSet.size(), vector<vector<int> >(UniqLociNamesList.size()) ); //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
 	//sized to number of populations, number of loci.  last level left unsized
 	
@@ -922,7 +998,7 @@ int main( int argc, char* argv[] )
 	time_t startd,endd;
 	if (procid == 0) 
 	{
-		cout << "  Converting data...\n";
+		cout << "  Converting data structure...\n";
 		time (&startd);
 	}
 
@@ -931,11 +1007,19 @@ int main( int argc, char* argv[] )
 	{
 		for (j=0;j<AllAlleleByPopList[i].size();++j)
 		{
-			vector<std::string> ttvec(AllAlleleByPopListSet[i][j].begin(), AllAlleleByPopListSet[i][j].end()); //use constructor to convert set to vector	
+			/*vector<int> ttvec;
+			ttvec.reserve(AllAlleleByPopListSet[i][j].size());
+			for(std::set<int>::iterator it=AllAlleleByPopListSet[i][j].begin(); it!=AllAlleleByPopListSet[i][j].end(); ++it)
+   				ttvec.push_back(*it);
+   			//std::cout << *it << std::endl;
+			*/			
+			
+			
+			vector<int> ttvec(AllAlleleByPopListSet[i][j].begin(), AllAlleleByPopListSet[i][j].end()); //use constructor to convert set to vector	
 			AllAlleleByPopList[i][j] = ttvec;
 		}
 	}
-	vector<vector<set<std::string> > >().swap(AllAlleleByPopListSet); //clear variable, no longer needed
+	vector<vector<set<int> > >().swap(AllAlleleByPopListSet); //clear variable, no longer needed
 	
 	double dif = difftime (endd,startd);
 	if (procid == 0) 
@@ -950,11 +1034,11 @@ int main( int argc, char* argv[] )
 	}
 
 	//sort AllAlleleByPopList into reference and target loci lists
-	vector<vector<vector<std::string> > > ActiveAlleleByPopList; 
-	vector<vector<vector<std::string> > > TargetAlleleByPopList; 
+	vector<vector<vector<int> > > ActiveAlleleByPopList; 
+	vector<vector<vector<int> > > TargetAlleleByPopList; 
 	MyReduceToRef(AllAlleleByPopList, ReferenceOrTargetKey, ActiveAlleleByPopList, TargetAlleleByPopList); //latter 2 variables updated as reference
 	
-	vector<vector<vector<std::string> > >().swap(AllAlleleByPopList); //clear variable, no longer needed
+	vector<vector<vector<int> > >().swap(AllAlleleByPopList); //clear variable, no longer needed
 		
 	if (procid == 0) 
 	{
@@ -1041,61 +1125,27 @@ int main( int argc, char* argv[] )
 	*/
 	if (procid == 0) 
 	{
-		cout << "  Removing target alleles...\n";
+		cout << "  Calculating run specific parameters...\n";
 		time (&startd);
 	}
 	//1. remove target alleles from AllAlleles
-	vector<std::string> AllRefAlleles = MyRemoveTargetAlleles(AllAlleles, AllColumnIDList, TargetColumnIDList);
-	vector<std::string>().swap(AllAlleles); //clear variable, no longer needed
-	if (procid == 0) 
-	{
-		time (&endd);
-		dif = difftime (endd,startd);
-		if (dif==1) cout << "    " << dif << " second.\n";	
-		else cout << "    " << dif << " seconds.\n";	
-
-		cout << "  AllRefAlleles to 2d...\n";
-		time (&startd);
-	}
+	vector<int> AllRefAlleles = MyRemoveTargetAlleles(AllAlleles, AllColumnIDList, TargetColumnIDList);
+	vector<int>().swap(AllAlleles); //clear variable, no longer needed
 	
 	//2. put AllRefAlleles into a 2d vector, samples are rows
-	vector<vector<std::string> > RefAllelesIntoRows(IndivPerPop.size(), vector<std::string> ( ActiveLociNameList.size() ));
+	vector<vector<int> > RefAllelesIntoRows(IndivPerPop.size(), vector<int> ( ActiveLociNameList.size() ));
 	MyMakeRefAllelesIntoRows(AllRefAlleles, ActiveLociNameList, RefAllelesIntoRows);
-	vector<std::string>().swap(AllRefAlleles); //clear variable, no longer needed
-	
-	if (procid == 0) 
-	{
-		time (&endd);
-		dif = difftime (endd,startd);
-		if (dif==1) cout << "    " << dif << " second.\n";	
-		else cout << "    " << dif << " seconds.\n";	
-
-		cout << "  Extract to vector of pairs...\n";
-		time (&startd);
-	}
-	
-	
-	//3. extract alleles into vector of pairs (ignores missing data 9999)
-	vector<std::pair<std::string, vector<std::string> > > RefAllelesByLocus; // first = locus name, second = vector of all alleles present, updated as reference below
+	vector<int>().swap(AllRefAlleles); //clear variable, no longer needed
+		
+	//3. extract alleles into vector of pairs (ignores missing data -9999)
+	vector<std::pair<std::string, vector<int> > > RefAllelesByLocus; // first = locus name, second = vector of all alleles present, updated as reference below
 	MyMakeRefAllelesByLocus(RefAllelesIntoRows, ActiveLociNameList, RefAllelesByLocus);
-	vector<vector<std::string> >().swap(RefAllelesIntoRows); //clear variable, no longer needed
+	vector<vector<int> >().swap(RefAllelesIntoRows); //clear variable, no longer needed
 	
-	if (procid == 0) 
-	{
-		time (&endd);
-		dif = difftime (endd,startd);
-		if (dif==1) cout << "    " << dif << " second.\n";	
-		else cout << "    " << dif << " seconds.\n";	
-
-		cout << "  Compute allele freqs...\n";
-		time (&startd);
-	}
-	
-	
-	//4. calculate allele frequencies, finally (ignores missing data 9999)
+	//4. calculate allele frequencies, finally (ignores missing data -9999)
 	vector<Alfreq> AlleleFrequencies;//(RefAllelesByLocus.size());  //declare vector of struct Alfreq
 	MyCalculateAlleleFrequencies(RefAllelesByLocus, AlleleFrequencies);
-	vector<std::pair<std::string, vector<std::string> > >().swap(RefAllelesByLocus); //clear variable, no longer needed
+	vector<std::pair<std::string, vector<int> > >().swap(RefAllelesByLocus); //clear variable, no longer needed
 	
 	if (procid == 0) 
 	{
@@ -1103,6 +1153,9 @@ int main( int argc, char* argv[] )
 		dif = difftime (endd,startd);
 		if (dif==1) cout << "    " << dif << " second.\n";	
 		else cout << "    " << dif << " seconds.\n";	
+		
+		cout << "  Finalizing data structures...\n";
+		time (&startd);
 	}
 
 		/*
@@ -1157,6 +1210,14 @@ int main( int argc, char* argv[] )
 	ActiveMaxAllelesList = MyGetMaxs(ActiveAlleleByPopList);
 	TargetMaxAllelesList = MyGetMaxs(TargetAlleleByPopList);
 		
+	if (procid == 0) 
+	{
+		time (&endd);
+		dif = difftime (endd,startd);
+		if (dif==1) cout << "    " << dif << " second.\n";	
+		else cout << "    " << dif << " seconds.\n";	
+	}
+
 	//stop the clock
 	time (&endi);
 	dif = difftime (endi,starti);

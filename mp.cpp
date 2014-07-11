@@ -1,6 +1,6 @@
 #include "m+.hpp"
 	
-int MyCalculateDiversity(vector<vector<vector<std::string> > > AlleleList, vector<int> ActiveMaxAllelesList, std::string Standardize, double& RandomActiveDiversity, double& AltRandomActiveDiversity)
+int MyCalculateDiversity(vector<vector<vector<int> > > AlleleList, vector<int> ActiveMaxAllelesList, std::string Standardize, double& RandomActiveDiversity, double& AltRandomActiveDiversity)
 {
 	/*AlleleList structure:
 		  Pop1..r
@@ -9,11 +9,11 @@ int MyCalculateDiversity(vector<vector<vector<std::string> > > AlleleList, vecto
 	int NumLoci = AlleleList[0].size();
 	int i, j, M;
 	unsigned int k;
-	vector<std::string> NewArray;
-	vector<std::string> CurrLoc;
-	vector<std::string> ListToFilter;
+	//vector<std::string> NewArray;
+	vector<int> CurrLoc;
+	//vector<std::string> ListToFilter;
 	vector<int> Mlist(NumLoci);
-	set<std::string> AlleleSet;
+	set<int> AlleleSet;
 
 	if (NumLoci == 0)
 	{
@@ -82,7 +82,7 @@ int MyCalculateDiversity(vector<vector<vector<std::string> > > AlleleList, vecto
 	return 0;
 }
 
-//write current results for each thread to a recovery file
+/*//write current results for each thread to a recovery file
 void WriteRecoveryFile (const char* RecoveryFilePath, int r, double StartingRandomActiveDiversity, double best, double RandomTargetDiversity, double OptimizedTargetDiversity, double StartingAltRandomActiveDiversity, double AltOptimizedActiveDiversity, double AltRandomTargetDiversity, double AltOptimizedTargetDiversity, vector<std::string> TempListStr)
 {
 	stringstream ss;
@@ -101,6 +101,7 @@ void WriteRecoveryFile (const char* RecoveryFilePath, int r, double StartingRand
 	}
 	RecoveryFile.close();
 }
+*/
 
 void printProgBar( int percent)
 {
@@ -147,8 +148,8 @@ void mp(
 	std::string Kernel,
 	vector<int> KernelAccessionIndex,
 	vector<int> AccessionNameList,
-	vector<vector<vector<std::string> > > ActiveAlleleByPopList,
-	vector<vector<vector<std::string> > > TargetAlleleByPopList,
+	vector<vector<vector<int> > > ActiveAlleleByPopList,
+	vector<vector<vector<int> > > TargetAlleleByPopList,
 	vector<int> ActiveMaxAllelesList,
 	vector<int> TargetMaxAllelesList,
 	vector<std::string> FullAccessionNameList
@@ -282,10 +283,10 @@ void mp(
 		double AltOptimizedTargetDiversity;
 		double best;
 		double nnew;
-		vector<vector<vector<std::string> > > AlleleList;
-		vector<vector<vector<std::string> > > CoreAlleles;
-		vector<vector<vector<std::string> > > TdTempList;
-		vector<vector<vector<std::string> > > BestSubCoreAlleles;
+		vector<vector<vector<int> > > AlleleList;
+		vector<vector<vector<int> > > CoreAlleles;
+		vector<vector<vector<int> > > TdTempList;
+		vector<vector<vector<int> > > BestSubCoreAlleles;
 		std::string Standardize = "yes";  //a run that mimics the MSTRAT approach can be accomplished by setting Standardize="no", and setting up the var file so that each column in the .dat file is treated as a single locus, rather than two (or more) adjacent columns being treated as a single codominant locus.
 		vector<int> AccessionsInCore;
 		vector<int> AccessionsInSubCore;

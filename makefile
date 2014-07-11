@@ -1,7 +1,7 @@
 #CXX = g++
 CXX = mpic++
 #CXX = CC
-FLAGS = -ggdb -Wall
+FLAGS = -O3 -Wall
 
 all: m+.o mp.o aStar.o 
 	${CXX} ${FLAGS} -o m+ m+.o mp.o aStar.o -fopenmp

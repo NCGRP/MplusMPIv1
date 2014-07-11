@@ -21,7 +21,7 @@ using namespace std;
 struct Alfreq //contains allele frequencies for all alleles at one locus
 {
 	std::string locusname;
-	vector<std::string> allelenames;
+	vector<int> allelenames;
 	vector<double> frequencies;
 };
 
@@ -45,7 +45,7 @@ class Node
 		void Seta2(double t);
 	
 		void SetAccName(std::string p);
-		void SetAlleles(vector<vector<std::string> > q);
+		void SetAlleles(vector<vector<int> > q);
 		void SetAlleleCounts(vector<int> r);
 		void SetParent(std::string u);
 		void SetPopSize(int w);
@@ -55,7 +55,7 @@ class Node
 		std::string GetAccName();
 		std::string GetParent();
 		vector<int> GetAlleleCounts();
-		vector<vector<string> > GetSetOfAlleles();
+		vector<vector<int> > GetSetOfAlleles();
 		int GetPopSize();
 		
 		//special functions
@@ -103,7 +103,7 @@ class Node
 		double a1; //frequency of rarest allele, favor accession with rarest allele
 		double a2; //average frequency of alleles, across all loci. favor accession with lowest mean freq
 		std::string AccName;
-		vector<vector<string> > SetOfAlleles;
+		vector<vector<int> > SetOfAlleles;
 		vector<int> AlleleCounts;
 		std::string Parent;
 		int PopSize;
@@ -134,8 +134,8 @@ class SortedCostNodeList
 
 
 /***************SHARED FUNCTIONS IN M+.cpp*****************/
-std::vector<std::string> MyFilterDuplicates (std::vector<std::string> ListToFilter);
-std::vector<std::string> MyFilterDuplicatesII (std::vector<std::string> ListToFilter);
+//std::vector<std::string> MyFilterDuplicates (std::vector<std::string> ListToFilter);
+//std::vector<std::string> MyFilterDuplicatesII (std::vector<std::string> ListToFilter);
 
 /***************SHARED FUNCTIONS IN aStar.cpp*****************/
 void printOPENList(SortedCostNodeList OPENlist);
@@ -146,7 +146,7 @@ void printAllNodes(std::vector<Node> AllNodes);
 int aStar 
 	(
 		char* IdealFilePath, 
-		vector<vector<vector<std::string> > > ActiveAllelesByPopList, 
+		vector<vector<vector<int> > > ActiveAllelesByPopList, 
 		std::vector<int> ActiveMaxAllelesList, 
 		std::vector<std::string> UniqLociNamesList, 
 		std::vector<int> ReferenceOrTargetKey, 
@@ -166,8 +166,8 @@ void mp
 		std::string Kernel,
 		vector<int> KernelAccessionIndex,
 		vector<int> AccessionNameList,
-		vector<vector<vector<std::string> > > ActiveAlleleByPopList,
-		vector<vector<vector<std::string> > > TargetAlleleByPopList,
+		vector<vector<vector<int> > > ActiveAlleleByPopList,
+		vector<vector<vector<int> > > TargetAlleleByPopList,
 		vector<int> ActiveMaxAllelesList,
 		vector<int> TargetMaxAllelesList,
 		vector<std::string> FullAccessionNameList
