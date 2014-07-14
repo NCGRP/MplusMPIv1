@@ -1276,7 +1276,7 @@ int main( int argc, char* argv[] )
 	if (DoM == "yes")
 	{
 		//if ( procid == 0 ) cout << "\nBeginning parallel M+ search...\n\n";
-		if ( procid == 0 ) cout << "\nBeginning parallel A* search (" << nprocs << " processors)...\n\n";
+		if ( procid == 0 ) cout << "\nBeginning parallel M+ search (" << nprocs << " processors)...\n\n";
 		
 		//start the clock
 		time_t startm,endm;
