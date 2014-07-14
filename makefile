@@ -1,5 +1,7 @@
-#CXX = g++
 CXX = mpic++
+#for compilation on Cray 
+# 1. make clean
+# 2. use CC compiler. uncomment the following line and comment out CXX = mpic++
 #CXX = CC
 FLAGS = -O3 -Wall
 

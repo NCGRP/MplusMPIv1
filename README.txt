@@ -25,8 +25,6 @@ Notes:  All input files must have Unix line breaks.
 
 Examples: mpirun -np 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
 				aprun -n 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
-          mpirun -np 6 ./m+ ./AllPOC.var ./AllPOC.dat -m 2 56 1 5 AllPOCout.txt -a AllPOCidealout.txt
-				aprun -n 6 ./m+ ./AllPOC.var ./AllPOC.dat -m 2 56 1 5 AllPOCout.txt -a AllPOCidealout.txt
           mpirun -np 16 ./m+ ./orientalis.var ./orientalisIND.dat -m 2 50 1 1 orINDout.txt -a orINDidealout.txt
 				aprun -n 16 ./m+ ./orientalis.var ./orientalisIND.dat -m 2 50 1 1 orINDout.txt -a orINDidealout.txt
           mpirun -np 20 ./m+ ./WheatSNP.var ./WheatSNP.dat -m 20 21 1 20 ./WheatSNPout.txt
