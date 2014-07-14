@@ -762,9 +762,8 @@ int main( int argc, char* argv[] )
 	//***MPI: INITIAL STEPS***
 	MPI::Init ();  //Initialize MPI.
 	int procid = MPI::COMM_WORLD.Get_rank ( );  //Get the individual process ID.
+	int nprocs = MPI::COMM_WORLD.Get_size ( );
 
-	//mallopt (M_TRIM_THRESHOLD, 1024);
-	
 	//***MPI: ALL PROCESSORS PARSE THE COMMAND LINE***
 	//get mandatory command line arguments
 	char* VarFilePath = argv[1];
@@ -909,6 +908,8 @@ int main( int argc, char* argv[] )
 		exit (EXIT_FAILURE); //master0 reports above, everybody quits here
 	}
 	
+	//DETERMINE MACHINE CONFIGURATIION
+	int ncpu = sysconf( _SC_NPROCESSORS_ONLN );
 
 	//PROCESS INPUT DATA
 	
@@ -1243,7 +1244,7 @@ int main( int argc, char* argv[] )
 		{
 			int parallelism_enabled = 1; //0=no, not 0 = yes
 			if (parallelism_enabled == 0) cout << "\nBeginning serial A* search...\n\n";
-			else cout << "\nBeginning parallel A* search...\n\n";
+			else cout << "\nBeginning parallel A* search (" << ncpu << " threads)...\n\n";
 				
 			//start the clock
 			time_t start1,end1;
@@ -1274,8 +1275,9 @@ int main( int argc, char* argv[] )
 	//PERFORM M+
 	if (DoM == "yes")
 	{
-		if ( procid == 0 ) cout << "\nBeginning parallel M+ search...\n\n";
-
+		//if ( procid == 0 ) cout << "\nBeginning parallel M+ search...\n\n";
+		if ( procid == 0 ) cout << "\nBeginning parallel A* search (" << nprocs << " processors)...\n\n";
+		
 		//start the clock
 		time_t startm,endm;
 		time (&startm);
