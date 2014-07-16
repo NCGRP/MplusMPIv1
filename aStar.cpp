@@ -519,12 +519,15 @@ int aStar (
 	vector<int> PloidyList, 
 	vector<int> PopSizes, 
 	vector<Alfreq> AlleleFrequencies, 
-	int parallelism_enabled
+	int parallelism_enabled,
+	time_t start1
 	)
 {
 	//SET UP
 	unsigned int i;
-	
+	time_t start2;
+	time (&start2);
+
 	//get total number of alleles
 	int TotAlleles = 0;
 	for (i=0;i<ActiveMaxAllelesList.size();++i) TotAlleles = TotAlleles + ActiveMaxAllelesList[i];
@@ -612,7 +615,6 @@ int aStar (
 
 	while (true)
 	{
-
 		//exit condition 1, OPENlist is empty so there is no solution
 		if (OPENlist.s.size() == 0) 
 		{
@@ -633,10 +635,17 @@ int aStar (
 		ParentPath = MyReconstructPath(node_current, AllNodes); //reconstruct path
 		if (node_current.GetAccName() != "start")
 		{
+			time_t end1;
+			time (&end1);
+			double dif = difftime (end1,start1);
+			double dif2 = difftime (end1,start2);
+
 			cout 	<< "Adding accession: " << node_current.GetAccName()
 					<< "  Current core size: " << ParentPath.size() + 1
-					<< "  Alleles captured: " << std::accumulate(currentstate.begin(), currentstate.end(), 0) << "/" << std::accumulate(goalstate.begin(), goalstate.end(),0) << "\n";
+					<< "  Alleles captured: " << std::accumulate(currentstate.begin(), currentstate.end(), 0) << "/" << std::accumulate(goalstate.begin(), goalstate.end(),0) 
+					<< "  Elapsed time: " << dif2 << "s/" << dif << "s\n";
 		}
+		time (&start2);
 
 		//exit condition 2, current state of node_current = ActiveMaxAllelesList (which is goalstate)
 		if (currentstate == goalstate) 

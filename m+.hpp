@@ -3,7 +3,6 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
-//#include <malloc/malloc.h>
 #include <math.h>
 #include <mpi.h>
 #include <numeric>
@@ -134,8 +133,7 @@ class SortedCostNodeList
 
 
 /***************SHARED FUNCTIONS IN M+.cpp*****************/
-//std::vector<std::string> MyFilterDuplicates (std::vector<std::string> ListToFilter);
-//std::vector<std::string> MyFilterDuplicatesII (std::vector<std::string> ListToFilter);
+
 
 /***************SHARED FUNCTIONS IN aStar.cpp*****************/
 void printOPENList(SortedCostNodeList OPENlist);
@@ -154,7 +152,8 @@ int aStar
 		vector<int> PloidyList, 
 		vector<int> PopSizes, 
 		vector<Alfreq> AlleleFrequencies, 
-		int parallelism_enabled
+		int parallelism_enabled,
+		time_t start1
 	);
 void mp
 	(
