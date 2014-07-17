@@ -1262,7 +1262,8 @@ int main( int argc, char* argv[] )
 				PloidyList, 
 				PopSizes, 
 				AlleleFrequencies, 
-				parallelism_enabled
+				parallelism_enabled,
+				start1
 			);
 		
 			//stop the clock
