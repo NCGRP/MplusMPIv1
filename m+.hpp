@@ -3,7 +3,6 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
-//#include <malloc/malloc.h>
 #include <math.h>
 #include <mpi.h>
 #include <numeric>
@@ -13,6 +12,7 @@
 #include <string.h>
 #include <sstream>
 #include <time.h>
+#include <unistd.h>
 #include <vector>
 using namespace std;
 

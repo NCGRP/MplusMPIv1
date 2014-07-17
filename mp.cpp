@@ -267,7 +267,8 @@ void mp(
 	else if ( procid != 0 )
 	{
 		unsigned int r; //r = core size, 
-		int nr, RandAcc, b, bsc, plateau; //nr = controller to repeat NumReplicates times
+		//int nr, RandAcc, b, bsc, plateau; //nr = controller to repeat NumReplicates times
+		int RandAcc, b, bsc, plateau; //nr = controller to repeat NumReplicates times
 								//row = result vector row number, bsc = holds best sub core member, and other indexed accessions
 									//plateau = index of the number of reps in optimization loop with same diversity value
 		double RandomActiveDiversity;
@@ -342,7 +343,8 @@ void mp(
 		for (int rnr=start;rnr<stop;++rnr)
 		{
 			r = MinCoreSize + ((rnr / NumReplicates) * SamplingFreq); //int rounds to floor
-			nr = rnr % NumReplicates; // modulo
+			//nr = rnr % NumReplicates; // modulo, nr no longer needed
+			
 			//develop random starting core set
 			//clear AccessionsInCore and set size
 			AccessionsInCore.clear();
