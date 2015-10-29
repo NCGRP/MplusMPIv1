@@ -1202,6 +1202,9 @@ int main( int argc, char* argv[] )
 		if ( procid == 0 ) cout << "\nM+ search complete.  Elapsed time = "<< dif << " seconds.\n\n";
 	
 	}
-	
+		
+	//Terminate MPI.
+	MPI::Finalize ( );
+
 	return 0;
 }

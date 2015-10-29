@@ -653,6 +653,6 @@ void mp(
 	} /***MPI: END MASTER WRITE***/
 	
 	//Terminate MPI.
-	MPI::Finalize ( );
+	//MPI::Finalize ( );
 
 }
