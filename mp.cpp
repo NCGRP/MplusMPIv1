@@ -9,9 +9,7 @@ int MyCalculateDiversity(vector<vector<vector<int> > > AlleleList, vector<int> A
 	int NumLoci = AlleleList[0].size();
 	int i, j, M;
 	unsigned int k;
-	//vector<std::string> NewArray;
 	vector<int> CurrLoc;
-	//vector<std::string> ListToFilter;
 	vector<int> Mlist(NumLoci);
 	set<int> AlleleSet;
 
@@ -57,7 +55,6 @@ int MyCalculateDiversity(vector<vector<vector<int> > > AlleleList, vector<int> A
 		SAD = SADtemp / NumLoci;
 		
 		//calculate M by simply adding up the Mlist
-		//M = std::accumulate(Mlist.begin(),Mlist.end(),0);  <--std::accumulate is unreliable so it has been removed
 		M = 0;
 		for (k=0;k<Mlist.size();++k)
 		{
@@ -81,27 +78,6 @@ int MyCalculateDiversity(vector<vector<vector<int> > > AlleleList, vector<int> A
 	}
 	return 0;
 }
-
-/*//write current results for each thread to a recovery file
-void WriteRecoveryFile (const char* RecoveryFilePath, int r, double StartingRandomActiveDiversity, double best, double RandomTargetDiversity, double OptimizedTargetDiversity, double StartingAltRandomActiveDiversity, double AltOptimizedActiveDiversity, double AltRandomTargetDiversity, double AltOptimizedTargetDiversity, vector<std::string> TempListStr)
-{
-	stringstream ss;
-	ss << omp_get_thread_num();
-	string foo = ss.str();
-	ofstream RecoveryFile;
-	RecoveryFile.open(RecoveryFilePath, ios::out | ios::app); //open file in append mode
-	RecoveryFile <<	r << "\t" << StartingRandomActiveDiversity << "\t" << best << "\t" << RandomTargetDiversity << "\t" << OptimizedTargetDiversity << "\t" << StartingAltRandomActiveDiversity << "\t" << AltOptimizedActiveDiversity << "\t" << AltRandomTargetDiversity << "\t" << AltOptimizedTargetDiversity << "\t(";
-	for (unsigned int i=0;i<TempListStr.size();++i)
-	{
-		if (i == (TempListStr.size() - 1) )
-		{
-			RecoveryFile << TempListStr[i] << ")\n";
-		}
-		else RecoveryFile << TempListStr[i] << ",";	
-	}
-	RecoveryFile.close();
-}
-*/
 
 void printProgBar( int percent)
 {
@@ -163,13 +139,6 @@ void mp(
 	//MPI::Init ();  //Initialize MPI.
 	int nproc = MPI::COMM_WORLD.Get_size ( );  //Get the number of processes.
 	int procid = MPI::COMM_WORLD.Get_rank ( );  //Get the individual process ID.
-	
-
-	/*MPI OMITTED SECTION
-	//set up variables for monitoring progress
-	int percent; //percent of analysis completed
-	int progindex = 0;  //index to monitor progress, percent = 100*(progindex/l)
-	***END MPI OMITTED SECTION***/
 	
 
 	//set up vectors to fill with results
@@ -302,21 +271,7 @@ void mp(
 		int tt;
 		tt = (time(NULL));
 		srand ( abs(((tt*181)*((procid-83)*359))%104729) );
-	
-		//***recovery files not used for MPI***/
-		/*//set up a recovery file for each thread that saves progress as program runs
-		stringstream ss;
-		ss << OutFilePath << ".t" << omp_get_thread_num() << ".tmp"; 
-		string rfp = ss.str();
-		const char* RecoveryFilePath = rfp.c_str();
-		ofstream RecoveryFile; 
-		RecoveryFile.open(RecoveryFilePath);
-		RecoveryFile.close(); //quick open close done to clear any existing file each time program is run
-		RecoveryFile.open(RecoveryFilePath, ios::out | ios::app); //open file in append mode
-		RecoveryFile << "core size	random reference diversity	optimized reference diversity	random target diversity	optimized target diversity	alt random reference diversity	alt optimized reference diversity	alt random target diversity	alt optimized target diversity	core members" << "\n";
-		RecoveryFile.close();
-		*/
-		
+			
 		//do parallelization so that each rep by core size combo can be
 		//handled by a distinct thread.  this involves figuring out the total
 		//number of reps*coresizes taking into account the SamplingFreq
@@ -343,7 +298,6 @@ void mp(
 		for (int rnr=start;rnr<stop;++rnr)
 		{
 			r = MinCoreSize + ((rnr / NumReplicates) * SamplingFreq); //int rounds to floor
-			//nr = rnr % NumReplicates; // modulo, nr no longer needed
 			
 			//develop random starting core set
 			//clear AccessionsInCore and set size
@@ -375,7 +329,6 @@ void mp(
 		
 			//randomly add accessions until r accessions are in the core. if there is a kernel, include those (done above)
 			//plus additional, randomly selected accessions, until you get r accessions
-			//for (int i=0;i<r;i++)
 			for (unsigned int i=KernelAccessionIndex.size();i<r;i++)
 			{
 				//choose an accession randomly from those available
@@ -398,7 +351,6 @@ void mp(
 			}
 
 			//2. calculate diversity from random selection at active loci
-			//vector<vector<vector<std::string> > >().swap(AlleleList); //clear AlleleList
 			AlleleList.clear();
 			AlleleList = CoreAlleles;
 	
@@ -584,11 +536,9 @@ void mp(
 				AlleleList[j] = TargetAlleleByPopList[b];
 			}
 	
-	
 			//calculate diversity at target loci based upon the optimized core selection
 			MyCalculateDiversity(AlleleList, TargetMaxAllelesList, Standardize, OptimizedTargetDiversity, AltOptimizedTargetDiversity);
 
-	
 			//8. Assemble stats for optimized core and add to output vectors
 			//create a list of accession names from the list of accession ID's in AccessionsInCore
 			sort( AccessionsInCore.begin(), AccessionsInCore.end() );
@@ -655,19 +605,6 @@ void mp(
 			//tagged as 1 to distinguish from result vector send
 			MPI_Send(&cc, sizeof(cc), MPI_CHAR, 0, 1, MPI_COMM_WORLD);
 
-
-			/*EXCLUDED FOR MPI
-			//core set members
-			Members[row] = TempListStr; 
-	
-			//write the results onto the recovery files
-			WriteRecoveryFile(RecoveryFilePath, r, StartingRandomActiveDiversity, best, RandomTargetDiversity, OptimizedTargetDiversity, StartingAltRandomActiveDiversity, AltOptimizedActiveDiversity, AltRandomTargetDiversity, AltOptimizedTargetDiversity, TempListStr);
-			
-			//display progress
-			progindex = progindex + 1;
-			percent = 100*(progindex/V1);
-			printProgBar(percent); 
-			*/
 		} //end for loop over rows
 	} //***MPI:  END SEND
 	
@@ -714,18 +651,6 @@ void mp(
 		//wrap up write step
 		output.close();
 	} /***MPI: END MASTER WRITE***/
-	
-	/*this section excluded for MPI implementation
-	//delete all recovery files
-	#pragma omp parallel if(parallelism_enabled) 
-	{		
-		stringstream ss;
-		ss << OutFilePath << ".t" << omp_get_thread_num() << ".tmp"; 
-		string rfp = ss.str();
-		const char* RecoveryFilePath = rfp.c_str();
-		remove(RecoveryFilePath);
-	}
-	*/
 	
 	//Terminate MPI.
 	MPI::Finalize ( );

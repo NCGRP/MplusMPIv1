@@ -1,37 +1,5 @@
 #include "m+.hpp"
 
-
-/*
-To compile:  use "make"
-Usage: m+ varfile datfile [-m mincoresize maxcoresize samplingfreq reps outputfile]
-		[-k kernelfile] [-a idealcorefile]
-where, 
-varfile = path to MSTRAT .var file
-datfile = path to MSTRAT .dat file
-
-Options:
--m mincoresize maxcoresize samplingfreq reps outputfile = compute the optimal accessions
-		for a given core size using the M+ search algorithm. Arguments are as follows:
-		mincoresize maxcoresize = integers specifying minimum and maximum core size. 
-			Usually mincoresize = 2, maxcoresize = total number of accessions
-		samplingfreq = e.g. integer value 5 will cause coresize=2 then coresize=7, then 12, 
-			and so on, to be sampled.
-		reps = number of replicate core sets to calculate for a particular core size
-		outputfile = path to output
--k kernelfile = use an MSTRAT .ker file to specify mandatory members of the 
-        core.  The number of mandatory accessions must therefore be less than or equal to 
-        mincoresize.  Option must be used with -m.
--a idealcorefile = compute the minimum set of accessions necessary to retain all variation,
-		i.e. the "ideal" or "best" core, using the A* search algorithm, write output to 
-		bestcorefile.
-
-Notes:  All input files must have Unix line breaks.
-
-example: ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker -a beetideal.txt
-*/
-
-
-
 /***************FUNCTIONS*****************/
 
 
@@ -339,55 +307,6 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 		else cout << "    " << dif << " seconds.\n";
 	}
 	
-	
-/*	//convert alleles to integer coding to save memory, vector access order 1
-	if (procid == 0) cout << "  Recoding data...\n";
-	time (&startm);
-
-	vector<vector<int> > bufvec2dint(bufvec2d.size(), vector<int>(bufvec2d[0].size())); //declare and size vector to hold new integer coded alleles
-	for (i=0;i<ColKeyToAllAlleleByPopList.size();++i) //go thru each locus
-	{
-		//get all alleles at the locus
-		vector<std::string> AllelesEncountered; //will contain the unique set of alleles at the locus
-		for (j=0;j<ColKeyToAllAlleleByPopList[i].size();++j) //go thru all columns for the locus
-		{
-			int ColIndex = ColKeyToAllAlleleByPopList[i][j];
-			for (k=0;k<bufvec2d.size();++k) //go thru all individuals
-			{
-				std::string a = bufvec2d[k][ColIndex]; //get alleles consecutively by column
-
-				if (a == "9999") bufvec2dint[k][ColIndex] = -9999; //add the missing data value
-				else
-				{
-					int AlleleInt; //the new, integerized, name of the allele
-					std::vector<std::string>::iterator itr = std::find(AllelesEncountered.begin(), AllelesEncountered.end(), a);
-					if (itr != AllelesEncountered.end()) //the allele has been found before
-					{
-						AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
-						bufvec2dint[k][ColIndex] = AlleleInt; //add the new name
-					}
-					else // you have a new allele
-					{
-						AllelesEncountered.push_back(a); //add new allele to list of those encountered
-						AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
-						bufvec2dint[k][ColIndex] = AlleleInt;
-					}
-				}
-			}
-		}
-	}
-	
-	//stop the clock
-	time (&endm);
-	dif = difftime (endm,startm);
-	if (procid == 0) 
-	{
-		if (dif==1) cout << "    " << dif << " second.\n";	
-		else cout << "    " << dif << " seconds.\n";	
-	}
-*/
-
-
 	//convert alleles to integer coding to save memory, vector access order 2
 	if (procid == 0) cout << "  Recoding data...\n";
 	time (&startm);
@@ -547,29 +466,6 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	return 0;
 }
 
-/*//removes duplicate alleles and missing data (9999) from the supplied vector
-vector<std::string> MyFilterDuplicates(vector<std::string> ListToFilter)
-{
-	//remove duplicates
-	sort( ListToFilter.begin(), ListToFilter.end() );
-	ListToFilter.erase( std::unique( ListToFilter.begin(), ListToFilter.end() ), ListToFilter.end() );
-	
-	//remove missing data
-	ListToFilter.erase( std::remove( ListToFilter.begin(), ListToFilter.end(), "9999" ), ListToFilter.end() );
-	
-	return ListToFilter;
-}
-
-//removes duplicate numbers from the supplied vector
-vector<std::string> MyFilterDuplicatesII(vector<std::string> ListToFilter)
-{
-	//remove duplicates
-	sort( ListToFilter.begin(), ListToFilter.end() );
-	ListToFilter.erase( std::unique( ListToFilter.begin(), ListToFilter.end() ), ListToFilter.end() );
-	
-	return ListToFilter;
-}
-*/
 
 //returns maximum number of alleles possible at each locus for active and target
 vector<int> MyGetMaxs(vector<vector<vector<int> > > ActiveAlleleByPopList)
@@ -909,7 +805,7 @@ int main( int argc, char* argv[] )
 	}
 	
 	//DETERMINE MACHINE CONFIGURATIION
-	int ncpu = sysconf( _SC_NPROCESSORS_ONLN );
+	int ncpu = sysconf( _SC_NPROCESSORS_ONLN  );
 
 	//PROCESS INPUT DATA
 	
@@ -1276,7 +1172,6 @@ int main( int argc, char* argv[] )
 	//PERFORM M+
 	if (DoM == "yes")
 	{
-		//if ( procid == 0 ) cout << "\nBeginning parallel M+ search...\n\n";
 		if ( procid == 0 ) cout << "\nBeginning parallel M+ search (" << nprocs << " processors)...\n\n";
 		
 		//start the clock
