@@ -173,7 +173,7 @@ void mp(
 			int nchar;
 			int tag;
 			MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-			MPI_Get_count(&status, MPI_CHAR, &nchar);
+			MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
 			tag = status.MPI_TAG;
 
 			if (tag == 0)
@@ -182,6 +182,7 @@ void mp(
 				//MPI_Send(&resvec[0], 10, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 				vector<double> t(10);
 				MPI_Recv(&t[0], 10, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+				//MPI_Recv(t[0], 10, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 			
 				//load data from vector received onto Results, row number is last item t[9]
 				for (int j=0;j<9;++j)
@@ -198,6 +199,7 @@ void mp(
 				//vector<string> m(nchar);
 				char m[nchar];
 				MPI_Recv(&m[0], nchar, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+				//MPI_Recv(m[0], nchar, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
 			
 				//load core set onto Members
 				//1. convert char array into a string
@@ -574,6 +576,7 @@ void mp(
 			resvec[7] = AltRandomTargetDiversity;
 			resvec[8] = AltOptimizedTargetDiversity;
 			resvec[9] = double(rnr);
+			
 		
 			//send result vector to master 0, send row number, rnr, as last element.
 			//message is tagged as 0

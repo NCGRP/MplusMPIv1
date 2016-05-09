@@ -76,34 +76,37 @@ int MyProcessVarFile(char* VarFilePath, vector<int>& AllColumnIDList, vector<std
     while( !infile.eof() ) // To get all the lines.
     {
 	    std::getline (infile, foo); // Saves the line in foo.
-	        
+	    
 	    //split foo on whitespace
 		foovector = split(foo);
-
-		//identify active columns with qualitative data, classify those as reference or target
-		if (foovector[1] == "2") //column holds qualitative data
+		
+		if (foovector.size() != 0) //omit the hanging last line, which has no information
 		{
-			AllColumnIDList.push_back(i);
-			AllLociNameList.push_back(foovector[0]);
+		
+			//identify active columns with qualitative data, classify those as reference or target
+			if (foovector[1] == "2") //column holds qualitative data
+			{
+				AllColumnIDList.push_back(i);
+				AllLociNameList.push_back(foovector[0]);
 				
-			if ((foovector[2] == "1") && (foovector[3] == "0")) //reference variable
-			{
-				ActiveColumnIDList.push_back(i);
-				ActiveLociNameList.push_back(foovector[0]);
+				if ((foovector[2] == "1") && (foovector[3] == "0")) //reference variable
+				{
+					ActiveColumnIDList.push_back(i);
+					ActiveLociNameList.push_back(foovector[0]);
+				}
+				else if ((foovector[2] == "0") && (foovector[3] == "1"))  //target variable
+				{
+					TargetColumnIDList.push_back(i);
+					TargetLociNameList.push_back(foovector[0]);
+				}
 			}
-			else if ((foovector[2] == "0") && (foovector[3] == "1"))  //target variable
-			{
-				TargetColumnIDList.push_back(i);
-				TargetLociNameList.push_back(foovector[0]);
-			}
+		 
+			i++;
+			foovector.clear();  //zero vector foovector
 		}
-	     
-		i++;
-		foovector.clear();  //zero vector foovector
     }
 	
 	infile.close();
-	
 	
 	//make a key showing which loci are target and which are reference
 	//this will be used later to sort out the AllAlleleByPopList
@@ -308,8 +311,11 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	}
 	
 	//convert alleles to integer coding to save memory, vector access order 2
-	if (procid == 0) cout << "  Recoding data...\n";
-	time (&startm);
+	if (procid == 0) 
+	{
+		cout << "  Recoding data...\n";
+		time (&startm);
+	}
 
 	vector<vector<int> > bufvec2dint(bufvec2d.size(), vector<int>(bufvec2d[0].size())); //declare and size vector to hold new integer coded alleles
 	unsigned int iz = ColKeyToAllAlleleByPopList.size();
@@ -325,7 +331,6 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 			{
 				int ColIndex = ColKeyToAllAlleleByPopList[i][j];
 				std::string a = bufvec2d[k][ColIndex];  
-
 				if (a == "9999") bufvec2dint[k][ColIndex] = -9999; //add the missing data value
 				else
 				{
@@ -348,10 +353,10 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	}
 	
 	//stop the clock
-	time (&endm);
-	dif = difftime (endm,startm);
 	if (procid == 0) 
 	{
+		time (&endm);
+		dif = difftime (endm,startm);
 		if (dif==1) cout << "    " << dif << " second.\n";	
 		else cout << "    " << dif << " seconds.\n";	
 	}
