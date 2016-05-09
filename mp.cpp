@@ -169,19 +169,26 @@ void mp(
 		unsigned int i = 0;
 		while (i<2*(Results.size())) //two receives per row
 		{
-			//probe the incoming message to determine its size and tag
-			int nchar;
+			//probe the incoming message to determine its tag
+			int nchar; //will contain the length of the char array passed with tag=1
+			int vchar; //will contain the length of the vector passed with tag=0
 			int tag;
 			MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-			MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
-			tag = status.MPI_TAG;
-
+			//MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
+			tag = status.MPI_TAG; //the tag defines which kind of comm it is, a vector of stats (0=resvec()) 
+			                      //or a char array describing the members of the core (1=cc)
+			
 			if (tag == 0)
 			{
+				//determine the length of the message tagged 0
+				MPI_Get_count(&status, MPI_DOUBLE, &vchar);
+				cout <<" vchar="<<vchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
+
+
 				//receive the vector of results, tagged 0, from:
-				//MPI_Send(&resvec[0], 10, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+				//MPI_Send(&resvec[0], resvec.size(), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 				vector<double> t(10);
-				MPI_Recv(&t[0], 10, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(&t[0], vchar, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 				//MPI_Recv(t[0], 10, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
 			
 				//load data from vector received onto Results, row number is last item t[9]
@@ -194,6 +201,12 @@ void mp(
 
 			else if (tag == 1)
 			{
+				//determine the length of the message tagged 1
+				MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
+
+
+				cout <<" nchar="<<nchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
+				
 				//receive the vector<string> of the core set, tagged 1, from:
 				//MPI_Send(&m[0], nchar, MPI_CHAR, 0, 1, MPI_COMM_WORLD);
 				//vector<string> m(nchar);
@@ -223,7 +236,14 @@ void mp(
 			
 				//3. load onto Members
 				Members[zz] = mvec;
+				
+				//4. clean up
+				memset(m, 0, nchar);; mstr=""; mvec.clear();
+				
+
 			}
+
+
 			++i;
 			
 			//display progress
@@ -577,12 +597,15 @@ void mp(
 			resvec[8] = AltOptimizedTargetDiversity;
 			resvec[9] = double(rnr);
 			
-		
+			
+			//cout<<"MPI_Rank="<<MPI_Rank<<" 
+			
+			
 			//send result vector to master 0, send row number, rnr, as last element.
 			//message is tagged as 0
 			//here you are pointing to the first element, then returning resvec.size() doubles-
 			//worth of memory from that starting location.
-			MPI_Send(&resvec[0], 10, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+			MPI_Send(&resvec[0], resvec.size(), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 			/***MPI: END BUILD & SEND RESULTS VECTOR***/
 
 
