@@ -172,24 +172,26 @@ void mp(
 			//probe the incoming message to determine its tag
 			int nchar; //will contain the length of the char array passed with tag=1
 			int vchar; //will contain the length of the vector passed with tag=0
-			int tag;
+			int tag; //tag of message from sender
+			int source; //procid of sender
+			
 			MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			//MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
 			tag = status.MPI_TAG; //the tag defines which kind of comm it is, a vector of stats (0=resvec()) 
 			                      //or a char array describing the members of the core (1=cc)
+			source = status.MPI_SOURCE; //determine the source of the message so that you can define which sender to Recv from.  This will avoid an intervening message coming in after the MPI_Probe with a different length, causing a message truncated error.
 			
 			if (tag == 0)
 			{
 				//determine the length of the message tagged 0
 				MPI_Get_count(&status, MPI_DOUBLE, &vchar);
-				cout <<" vchar="<<vchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
 
+				//cout <<" vchar="<<vchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
 
 				//receive the vector of results, tagged 0, from:
 				//MPI_Send(&resvec[0], resvec.size(), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 				vector<double> t(10);
-				MPI_Recv(&t[0], vchar, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-				//MPI_Recv(t[0], 10, MPI_DOUBLE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+				MPI_Recv(&t[0], vchar, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, &status);
 			
 				//load data from vector received onto Results, row number is last item t[9]
 				for (int j=0;j<9;++j)
@@ -204,15 +206,13 @@ void mp(
 				//determine the length of the message tagged 1
 				MPI_Get_count(&status, MPI_CHAR, &nchar); //probes the length of the message, saves it in nchar
 
-
-				cout <<" nchar="<<nchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
+				//cout <<" nchar="<<nchar<<" tag="<<tag<<" MPI_SOURCE="<<status.MPI_SOURCE<<" MPI_ERROR="<<status.MPI_ERROR<<"\n";
 				
 				//receive the vector<string> of the core set, tagged 1, from:
 				//MPI_Send(&m[0], nchar, MPI_CHAR, 0, 1, MPI_COMM_WORLD);
 				//vector<string> m(nchar);
 				char m[nchar];
-				MPI_Recv(&m[0], nchar, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
-				//MPI_Recv(m[0], nchar, MPI_CHAR, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+				MPI_Recv(&m[0], nchar, MPI_CHAR, source, 1, MPI_COMM_WORLD, &status);
 			
 				//load core set onto Members
 				//1. convert char array into a string
