@@ -21,9 +21,9 @@ Options:
         i.e. the "ideal" or "best" core, using the A* search algorithm, write output to 
         idealcorefile.
 
-Notes:  Option -m uses MPI and -a uses OpenMP.
-        For best performance, avoid combining -m and -a in a single command. Always specify 
-        >2 processors when invoking -m.  Specify 1 processor when using -a.
+Notes:  Option -m uses MPI and -a uses OpenMP. For best performance, avoid combining -m and
+        -a in a single command. Always specify 2 or more processors when invoking -m.
+        Specify 1 processor when using -a. To verify input files, omit all options.
 
 Examples (mpirun):
           mpirun -np 2 ./m+ ./beet.var ./beet.dat -m 3 28 2 3 ./beetout.txt -k beet.ker
