@@ -910,15 +910,6 @@ int main( int argc, char* argv[] )
 	
 	MPI_Bcast(&DatFileBuffer[0], f, MPI_CHAR, 0, MPI_COMM_WORLD); //broadcast the dat file contents to all procs
  
-	/*Display a bit of the MPI_Bcast'ed data
-	for (unsigned int i=0;i<nprocs;++i)
-	{
-		if (procid == i)
-		{
-			printf ("[%d] f=%d, Dat=%.5s\n", procid, f, DatFileBuffer);
-		}
-	}
-	*/
 
 	//***MPI: ALL PROCESSORS PROCESS .DAT FILE***
 	vector<std::string> FullAccessionNameList;
