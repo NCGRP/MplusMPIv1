@@ -63,13 +63,59 @@ vector<int> GetPloidy(vector<std::string> AllLociNameList, vector<std::string> U
 	return PloidyList;
 }
 
-int MyProcessVarFile(char* VarFilePath, vector<int>& AllColumnIDList, vector<std::string>& AllLociNameList, vector<int>& ActiveColumnIDList, vector<std::string>& ActiveLociNameList, vector<int>& TargetColumnIDList, vector<std::string>& TargetLociNameList, vector<vector<int> >& ColKeyToAllAlleleByPopList, vector<int>& ReferenceOrTargetKey, vector<int>& PloidyList, vector<std::string>& UniqLociNameList)
+int MyProcessVarFile(char* VarFileBuffer, vector<int>& AllColumnIDList, vector<std::string>& AllLociNameList, vector<int>& ActiveColumnIDList, vector<std::string>& ActiveLociNameList, vector<int>& TargetColumnIDList, vector<std::string>& TargetLociNameList, vector<vector<int> >& ColKeyToAllAlleleByPopList, vector<int>& ReferenceOrTargetKey, vector<int>& PloidyList, vector<std::string>& UniqLociNameList)
 {
     //declare variables
     std::string foo;
     vector<std::string> foovector;
     unsigned int k;
+    int i=0; // i is the row number
+
+	std::string vfb(VarFileBuffer); //convert char* to string
+    std::istringstream iss(vfb); //open string as a stream
+    while (std::getline(iss, foo)) //cycle line by line, placing line in foo
+    {
+	    //split foo on whitespace
+		foovector = split(foo);
+		
+		if (foovector.size() != 0) //omit the hanging last line, which has no information
+		{
+		
+			//identify active columns with qualitative data, classify those as reference or target
+			if (foovector[1] == "2") //column holds qualitative data
+			{
+				AllColumnIDList.push_back(i);
+				AllLociNameList.push_back(foovector[0]);
+				
+				if ((foovector[2] == "1") && (foovector[3] == "0")) //reference variable
+				{
+					ActiveColumnIDList.push_back(i);
+					ActiveLociNameList.push_back(foovector[0]);
+				}
+				else if ((foovector[2] == "0") && (foovector[3] == "1"))  //target variable
+				{
+					TargetColumnIDList.push_back(i);
+					TargetLociNameList.push_back(foovector[0]);
+				}
+			}
+		 
+			i++;
+			foovector.clear();  //zero vector foovector
+		}
+    }
     
+	/*std::string input;
+	// get input ...
+	std::istringstream stream(input);
+	std::string line;
+	while (std::getline(stream, line)) {
+	  std::cout << line << std::endl;
+	} 
+	*/
+	
+	
+	   
+    /*old way using file path
     int i=0; // i is the row number
 	std::ifstream infile;
 	infile.open(VarFilePath);
@@ -107,6 +153,7 @@ int MyProcessVarFile(char* VarFilePath, vector<int>& AllColumnIDList, vector<std
     }
 	
 	infile.close();
+*/
 	
 	//make a key showing which loci are target and which are reference
 	//this will be used later to sort out the AllAlleleByPopList
@@ -277,7 +324,7 @@ int MyProcessDatFileIII(char* DatFileBuffer, int procid, vector<int> AllColumnID
 	time_t startm,endm;
 	time (&startm);
 
-	/*
+	/* old way
 	//read the whole file into a buffer using fread
 	char * buffer;
 	buffer = MyBigRead(DatFilePath);
@@ -834,8 +881,28 @@ int main( int argc, char* argv[] )
 	time_t starti,endi;
 	time (&starti);
 	
-	//***MPI: MASTER 0 READS THE VAR FILE
-	//to do
+	//***MPI: MASTER 0 READS THE VAR FILE, BROADCASTS TO ALL PROCS
+	//read the file into a buffer using fread, pass it to other procs using MPI_Bcast
+	unsigned long long f = 0; //var (and later, dat) file size
+	
+	if (procid == 0)
+	{
+		f = (unsigned long long)filesize(VarFilePath); 
+		f = f + 1; //increase by 1 to accomodate \0 string terminator
+	}
+			
+	MPI_Bcast(&f, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD); //broadcast file size to all procs
+	char * VarFileBuffer = (char*)malloc(f); //initialize and size the data structure to hold contents of var file
+
+	if (procid == 0)
+	{
+		char * d = MyBigRead(VarFilePath);
+		strcpy(VarFileBuffer, d); //convert the char* to a char array, presized from prior MPI_Bcast
+		strcpy(d,""); //clear char*
+	}
+	
+	MPI_Bcast(&VarFileBuffer[0], f, MPI_CHAR, 0, MPI_COMM_WORLD); //broadcast the var file contents to all procs
+
 		
 	//.var file
 	vector<int> AllColumnIDList;
@@ -849,7 +916,8 @@ int main( int argc, char* argv[] )
 	vector<int> PloidyList;
 	vector<std::string> UniqLociNamesList;
 
-	MyProcessVarFile(VarFilePath, AllColumnIDList, AllLociNameList, ActiveColumnIDList, ActiveLociNameList, TargetColumnIDList, TargetLociNameList, ColKeyToAllAlleleByPopList, ReferenceOrTargetKey, PloidyList, UniqLociNamesList ); 
+	MyProcessVarFile(VarFileBuffer, AllColumnIDList, AllLociNameList, ActiveColumnIDList, ActiveLociNameList, TargetColumnIDList, TargetLociNameList, ColKeyToAllAlleleByPopList, ReferenceOrTargetKey, PloidyList, UniqLociNamesList ); 
+	//MyProcessVarFile(VarFilePath, AllColumnIDList, AllLociNameList, ActiveColumnIDList, ActiveLociNameList, TargetColumnIDList, TargetLociNameList, ColKeyToAllAlleleByPopList, ReferenceOrTargetKey, PloidyList, UniqLociNamesList ); 
 	//all but first variable above are updated as references in MyProcessVarFile
 
 	//***MPI: MASTER 0 PRINTS OUT LOCUS SPECS***
@@ -890,7 +958,7 @@ int main( int argc, char* argv[] )
 
 	//***MPI: MASTER 0 READS THE DAT FILE, BROADCASTS TO ALL PROCS
 	//read the whole file into a buffer using fread, pass it to other procs using MPI_Bcast
-	unsigned long long f = 0; //dat file size
+	f = 0; //dat file size
 	
 	if (procid == 0)
 	{
