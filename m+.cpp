@@ -251,7 +251,7 @@ int MyReduceToRef(vector<vector<vector<int> > > AllAlleleByPopList, vector<int> 
 	return 0;
 }
 
-int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<int> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<int>& AllAlleles)
+int MyProcessDatFileIII(char* DatFileBuffer, int procid, vector<int> AllColumnIDList, vector<vector<int> > ColKeyToAllAlleleByPopList, vector<vector<set<int> > >& AllAlleleByPopListSet, vector<std::string>& FullAccessionNameList, vector<std::string>& IndivPerPop, vector<int>& AllAlleles)
 {
 	//declare variables
 	std::string foo;
@@ -277,12 +277,19 @@ int MyProcessDatFileIII(char* DatFilePath, int procid, vector<int> AllColumnIDLi
 	time_t startm,endm;
 	time (&startm);
 
+	/*
 	//read the whole file into a buffer using fread
 	char * buffer;
 	buffer = MyBigRead(DatFilePath);
 	stringstream s(buffer); //put giant char array into a stream
 	
 	strcpy(buffer,""); //clear char*
+	*/
+	
+	//put giant char array buffer into a stream, then delete the buffer to save memory 
+	stringstream s(DatFileBuffer);
+	strcpy(DatFileBuffer,""); //clear char* 
+	
 	
 	//read buffer into a vector, one line per item
 	while (getline(s, foo))//get line from s, put in foo, consecutively
@@ -655,6 +662,14 @@ void MyCalculateAlleleFrequencies(vector<std::pair<std::string, vector<int> > > 
 	}
 }
 
+//determine the size of a file on disk
+std::ifstream::pos_type filesize(const char* filename)
+{
+	std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+	return in.tellg(); 
+}
+
+
 
 /***************MAIN*****************/
 
@@ -781,7 +796,8 @@ int main( int argc, char* argv[] )
 		}
 	}
 	
-	//catch some errors in the command line
+	//catch some errors in the command line, all procs do this so that if one fails, they can all be made
+	//to quit easily.  This instead of doing the test on procid==0 and sending a kill to all other procs.
 	if (DoM == "yes")
 	{
 		if (MinCoreSize > MaxCoreSize) 
@@ -817,7 +833,10 @@ int main( int argc, char* argv[] )
 	//start the clock
 	time_t starti,endi;
 	time (&starti);
-
+	
+	//***MPI: MASTER 0 READS THE VAR FILE
+	//to do
+		
 	//.var file
 	vector<int> AllColumnIDList;
 	vector<std::string> AllLociNameList;
@@ -868,7 +887,40 @@ int main( int argc, char* argv[] )
 		cout << "\nProcessing .dat file...\n";
 	}
 
-	//***MPI: ALL PROCESSORS READ .DAT FILE***
+
+	//***MPI: MASTER 0 READS THE DAT FILE, BROADCASTS TO ALL PROCS
+	//read the whole file into a buffer using fread, pass it to other procs using MPI_Bcast
+	unsigned long long f = 0; //dat file size
+	
+	if (procid == 0)
+	{
+		f = (unsigned long long)filesize(DatFilePath); 
+		f = f + 1; //increase by 1 to accomodate \0 string terminator
+	}
+			
+	MPI_Bcast(&f, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD); //broadcast file size to all procs
+	char * DatFileBuffer = (char*)malloc(f); //initialize and size the data structure to hold contents of dat file
+
+	if (procid == 0)
+	{
+		char * d = MyBigRead(DatFilePath);
+		strcpy(DatFileBuffer, d); //convert the char* to a char array, presized from prior MPI_Bcast
+		strcpy(d,""); //clear char*
+	}
+	
+	MPI_Bcast(&DatFileBuffer[0], f, MPI_CHAR, 0, MPI_COMM_WORLD); //broadcast the dat file contents to all procs
+ 
+	/*Display a bit of the MPI_Bcast'ed data
+	for (unsigned int i=0;i<nprocs;++i)
+	{
+		if (procid == i)
+		{
+			printf ("[%d] f=%d, Dat=%.5s\n", procid, f, DatFileBuffer);
+		}
+	}
+	*/
+
+	//***MPI: ALL PROCESSORS PROCESS .DAT FILE***
 	vector<std::string> FullAccessionNameList;
 	vector<std::string> IndivPerPop;
 	vector<int> AllAlleles;
@@ -876,7 +928,9 @@ int main( int argc, char* argv[] )
 	//switch for new MyProcessDatFileIII
 	vector<vector<set<int> > > AllAlleleByPopListSet; //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
-	MyProcessDatFileIII(DatFilePath, procid, AllColumnIDList, ColKeyToAllAlleleByPopList, AllAlleleByPopListSet, FullAccessionNameList, IndivPerPop, AllAlleles);
+	
+	//Process the dat file
+	MyProcessDatFileIII(DatFileBuffer, procid, AllColumnIDList, ColKeyToAllAlleleByPopList, AllAlleleByPopListSet, FullAccessionNameList, IndivPerPop, AllAlleles);
 
 	vector<vector<vector<int> > > AllAlleleByPopList( AllAlleleByPopListSet.size(), vector<vector<int> >(UniqLociNamesList.size()) ); //structure of this 3D vector is:
 	// { { {pop1,loc1 alleles},{pop1,loc2 alleles},...}, { {pop2,loc1 alleles},{pop2,loc2 alleles},...} } }
@@ -1121,8 +1175,11 @@ int main( int argc, char* argv[] )
 	}
 
 	//stop the clock
-	time (&endi);
-	dif = difftime (endi,starti);
+	if (procid == 0) 
+	{
+		time (&endi);
+		dif = difftime (endi,starti);
+	}
 
 	//***MPI: MASTER 0 PRINTS DAT FILE SPECS
 	if ( procid == 0 ) 
