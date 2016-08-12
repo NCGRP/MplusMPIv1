@@ -103,17 +103,6 @@ int MyProcessVarFile(char* VarFileBuffer, vector<int>& AllColumnIDList, vector<s
 			foovector.clear();  //zero vector foovector
 		}
     }
-    
-	/*std::string input;
-	// get input ...
-	std::istringstream stream(input);
-	std::string line;
-	while (std::getline(stream, line)) {
-	  std::cout << line << std::endl;
-	} 
-	*/
-	
-	
 	   
     /*old way using file path
     int i=0; // i is the row number
