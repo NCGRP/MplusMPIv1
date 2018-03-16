@@ -1,3 +1,4 @@
+Version: 1
 To compile:  use "make"
 Usage: m+ varfile datfile [-m mincoresize maxcoresize samplingfreq reps outputfile]
         [-k kernelfile] [-a idealcorefile]
